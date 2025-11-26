@@ -25,6 +25,7 @@ import { Badge } from '@/components/ui/badge';
 import { Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency, amountToCents } from '@/lib/format';
+import { getApiErrorMessage } from '@/lib/errors';
 import type { Insumo, PurchaseRequest } from '@/types';
 import { useAuthStore } from '@/store/authStore';
 import { hasRole } from '@/lib/auth';
@@ -40,8 +41,8 @@ export default function Inventory() {
   const { data: insumos, isLoading } = useQuery({
     queryKey: ['insumos'],
     queryFn: async () => {
-      const { data } = await api.get<Insumo[]>('/inventory/insumos');
-      return data;
+      const { data } = await api.get<{ data: Insumo[] }>('/inventory');
+      return data.data;
     },
   });
 
@@ -57,20 +58,34 @@ export default function Inventory() {
       setCost('');
       setSelectedInsumo(null);
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.error || 'Error al registrar compra');
+    onError: (error: unknown) => {
+      toast.error(getApiErrorMessage(error, 'Error al registrar compra'));
     },
   });
 
   const handlePurchase = () => {
-    if (!selectedInsumo || !quantity || !cost) return;
+    if (!selectedInsumo) {
+      toast.error('Seleccione un insumo válido');
+      return;
+    }
 
-    const costInCents = displayToCents(parseFloat(cost));
+    const quantityValue = parseFloat(quantity);
+    const costValue = parseFloat(cost);
+
+    if (Number.isNaN(quantityValue) || quantityValue <= 0) {
+      toast.error('Ingrese una cantidad válida');
+      return;
+    }
+
+    if (Number.isNaN(costValue) || costValue <= 0) {
+      toast.error('Ingrese un costo válido');
+      return;
+    }
 
     purchaseMutation.mutate({
       insumoId: selectedInsumo.id,
-      cantidad: parseFloat(quantity),
-      costo: costInCents,
+      cantidad: quantityValue,
+      costoTotal: amountToCents(costValue),
     });
   };
 
@@ -79,7 +94,7 @@ export default function Inventory() {
     setPurchaseDialog(true);
   };
 
-  const isAdmin = user && hasRole(user, ['ADMIN']);
+  const isAdmin = hasRole(user, ['ADMIN']);
 
   return (
     <div className="space-y-6">
@@ -95,61 +110,63 @@ export default function Inventory() {
           <CardTitle>Insumos</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nombre</TableHead>
-                <TableHead>Unidad</TableHead>
-                <TableHead>Stock</TableHead>
-                <TableHead>Costo Promedio</TableHead>
-                <TableHead>Estado</TableHead>
-                {isAdmin && <TableHead>Acciones</TableHead>}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
+          <div className="overflow-x-auto rounded-lg border bg-card">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center">
-                    Cargando...
-                  </TableCell>
+                  <TableHead>Nombre</TableHead>
+                  <TableHead>Unidad</TableHead>
+                  <TableHead>Stock</TableHead>
+                  <TableHead>Costo Promedio</TableHead>
+                  <TableHead>Estado</TableHead>
+                  {isAdmin && <TableHead>Acciones</TableHead>}
                 </TableRow>
-              ) : insumos?.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center">
-                    No hay insumos registrados
-                  </TableCell>
-                </TableRow>
-              ) : (
-                insumos?.map((insumo) => (
-                  <TableRow key={insumo.id}>
-                    <TableCell className="font-medium">{insumo.nombre}</TableCell>
-                    <TableCell>{insumo.unidad}</TableCell>
-                    <TableCell>{insumo.stock.toFixed(2)}</TableCell>
-                    <TableCell>{formatCurrency(insumo.costoPromedio)}</TableCell>
-                    <TableCell>
-                      {insumo.stock < 10 ? (
-                        <Badge variant="destructive">Stock Bajo</Badge>
-                      ) : (
-                        <Badge variant="default">Disponible</Badge>
-                      )}
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center">
+                      Cargando...
                     </TableCell>
-                    {isAdmin && (
-                      <TableCell>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => openPurchaseDialog(insumo)}
-                        >
-                          <Plus className="mr-2 h-4 w-4" />
-                          Compra
-                        </Button>
-                      </TableCell>
-                    )}
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : insumos?.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center">
+                      No hay insumos registrados
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  insumos?.map((insumo) => (
+                    <TableRow key={insumo.id}>
+                      <TableCell className="font-medium">{insumo.nombre}</TableCell>
+                      <TableCell>{insumo.unidad}</TableCell>
+                      <TableCell>{insumo.stock.toFixed(2)}</TableCell>
+                      <TableCell>{formatCurrency(insumo.costoPromedio)}</TableCell>
+                      <TableCell>
+                        {insumo.stock < 10 ? (
+                          <Badge variant="destructive">Stock Bajo</Badge>
+                        ) : (
+                          <Badge variant="default">Disponible</Badge>
+                        )}
+                      </TableCell>
+                      {isAdmin && (
+                        <TableCell>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openPurchaseDialog(insumo)}
+                          >
+                            <Plus className="mr-2 h-4 w-4" />
+                            Compra
+                          </Button>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 
@@ -174,7 +191,7 @@ export default function Inventory() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="cost">Costo Unitario (C$)</Label>
+              <Label htmlFor="cost">Costo Total (C$)</Label>
               <Input
                 id="cost"
                 type="number"

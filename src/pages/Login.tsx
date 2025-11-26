@@ -9,13 +9,29 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { toast } from 'sonner';
 import { Utensils, Loader2 } from 'lucide-react';
 import type { AuthResponse } from '@/types';
+import { useMutation } from '@tanstack/react-query';
+import { getApiErrorMessage } from '@/lib/errors';
 
 export default function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { setAuth, user } = useAuthStore();
+
+  const loginMutation = useMutation({
+    mutationFn: async (credentials: { username: string; password: string }) => {
+      const { data } = await api.post<AuthResponse>('/auth/login', credentials);
+      return data;
+    },
+    onSuccess: (data) => {
+      setAuth(data.token, data.user);
+      toast.success('Inicio de sesión exitoso');
+      navigate('/');
+    },
+    onError: (error: unknown) => {
+      toast.error(getApiErrorMessage(error, 'Error al iniciar sesión'));
+    },
+  });
 
   // Redirect if already logged in
   useEffect(() => {
@@ -26,22 +42,7 @@ export default function Login() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-
-    try {
-      const { data } = await api.post<AuthResponse>('/auth/login', {
-        username,
-        password,
-      });
-
-      setAuth(data.token);
-      toast.success('Inicio de sesión exitoso');
-      navigate('/');
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Error al iniciar sesión');
-    } finally {
-      setLoading(false);
-    }
+    loginMutation.mutate({ username, password });
   };
 
   return (
@@ -67,7 +68,7 @@ export default function Login() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
-                disabled={loading}
+                disabled={loginMutation.isPending}
               />
             </div>
             <div className="space-y-2">
@@ -79,11 +80,11 @@ export default function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                disabled={loading}
+                disabled={loginMutation.isPending}
               />
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? (
+            <Button type="submit" className="w-full" disabled={loginMutation.isPending}>
+              {loginMutation.isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Iniciando sesión...

@@ -17,8 +17,10 @@ import {
 } from '@/components/ui/dialog';
 import { Search, ShoppingCart, Trash2, Plus, Minus } from 'lucide-react';
 import { toast } from 'sonner';
-import { formatCurrency, amountToCents, calculateChange } from '@/lib/format';
+import { formatCurrency, amountToCents, calculateChange, calculateTotalPayment } from '@/lib/format';
+import { getApiErrorMessage } from '@/lib/errors';
 import type { Producto, Config, CheckoutRequest } from '@/types';
+import { useAuthStore } from '@/store/authStore';
 
 interface CartItem {
   producto: Producto;
@@ -27,6 +29,7 @@ interface CartItem {
 
 export default function POS() {
   const queryClient = useQueryClient();
+  const { user } = useAuthStore();
   const [search, setSearch] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [checkoutDialog, setCheckoutDialog] = useState(false);
@@ -36,16 +39,16 @@ export default function POS() {
   const { data: productos } = useQuery({
     queryKey: ['productos'],
     queryFn: async () => {
-      const { data } = await api.get<Producto[]>('/products');
-      return data;
+      const { data } = await api.get<{ data: Producto[] }>('/production/products');
+      return data.data;
     },
   });
 
   const { data: config } = useQuery({
     queryKey: ['config'],
     queryFn: async () => {
-      const { data } = await api.get<Config>('/config');
-      return data;
+      const { data } = await api.get<{ data: Config }>('/config');
+      return data.data;
     },
   });
 
@@ -61,21 +64,22 @@ export default function POS() {
       setPaymentNIO('');
       setPaymentUSD('');
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.error || 'Error al procesar venta');
+    onError: (error: unknown) => {
+      toast.error(getApiErrorMessage(error, 'Error al procesar venta'));
     },
   });
 
   const filteredProducts = useMemo(() => {
     if (!productos) return [];
-    return productos.filter((p) =>
-      p.nombre.toLowerCase().includes(search.toLowerCase()) ||
-      p.categoria.toLowerCase().includes(search.toLowerCase())
-    );
+    const needle = search.toLowerCase();
+    return productos.filter((p) => {
+      const haystack = `${p.nombre} ${p.categoria ?? ''}`.toLowerCase();
+      return haystack.includes(needle);
+    });
   }, [productos, search]);
 
   const addToCart = (producto: Producto) => {
-    if (producto.stock === 0) {
+    if (producto.stockDisponible === 0) {
       toast.error('Producto sin stock');
       return;
     }
@@ -83,7 +87,7 @@ export default function POS() {
     setCart((prev) => {
       const existing = prev.find((item) => item.producto.id === producto.id);
       if (existing) {
-        if (existing.cantidad >= producto.stock) {
+        if (existing.cantidad >= producto.stockDisponible) {
           toast.error('No hay más stock disponible');
           return prev;
         }
@@ -104,7 +108,7 @@ export default function POS() {
           if (item.producto.id === productId) {
             const newCantidad = item.cantidad + delta;
             if (newCantidad <= 0) return null;
-            if (newCantidad > item.producto.stock) {
+            if (newCantidad > item.producto.stockDisponible) {
               toast.error('No hay más stock disponible');
               return item;
             }
@@ -120,9 +124,9 @@ export default function POS() {
     setCart((prev) => prev.filter((item) => item.producto.id !== productId));
   };
 
-  const totalNIO = cart.reduce(
-    (sum, item) => sum + item.producto.precioVenta * item.cantidad,
-    0
+  const totalNIO = useMemo(
+    () => cart.reduce((sum, item) => sum + item.producto.precioVenta * item.cantidad, 0),
+    [cart]
   );
 
   const change = useMemo(() => {
@@ -138,13 +142,37 @@ export default function POS() {
       return;
     }
 
+    if (!config) {
+      toast.error('No se pudo obtener la configuración de pago');
+      return;
+    }
+
+    if (!user) {
+      toast.error('Sesión no disponible. Vuelva a iniciar sesión.');
+      return;
+    }
+
     const nioPayment = parseFloat(paymentNIO) || 0;
     const usdPayment = parseFloat(paymentUSD) || 0;
-    const totalPayment = displayToCents(nioPayment) + displayToCents(usdPayment * (config?.tasaCambio || 1));
+    const totalPayment = calculateTotalPayment(nioPayment, usdPayment, config.tasaCambio);
 
     if (totalPayment < totalNIO) {
       toast.error('El pago es insuficiente');
       return;
+    }
+
+    const pagos: CheckoutRequest['pagos'] = [];
+
+    if (nioPayment > 0) {
+      pagos.push({ moneda: 'NIO', cantidad: amountToCents(nioPayment) });
+    }
+
+    if (usdPayment > 0) {
+      pagos.push({
+        moneda: 'USD',
+        cantidad: amountToCents(usdPayment),
+        tasa: config.tasaCambio,
+      });
     }
 
     const request: CheckoutRequest = {
@@ -152,10 +180,8 @@ export default function POS() {
         productoId: item.producto.id,
         cantidad: item.cantidad,
       })),
-      pagos: [
-        ...(nioPayment > 0 ? [{ moneda: 'NIO' as const, monto: displayToCents(nioPayment) }] : []),
-        ...(usdPayment > 0 ? [{ moneda: 'USD' as const, monto: displayToCents(usdPayment) }] : []),
-      ],
+      pagos,
+      usuarioId: user.id,
     };
 
     checkoutMutation.mutate(request);
@@ -190,17 +216,19 @@ export default function POS() {
               >
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base">{producto.nombre}</CardTitle>
-                  <Badge variant="outline" className="w-fit">
-                    {producto.categoria}
-                  </Badge>
+                  {producto.categoria && (
+                    <Badge variant="outline" className="w-fit">
+                      {producto.categoria}
+                    </Badge>
+                  )}
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center justify-between">
                     <span className="text-xl font-bold text-primary">
                       {formatCurrency(producto.precioVenta)}
                     </span>
-                    <Badge variant={producto.stock > 0 ? 'default' : 'destructive'}>
-                      Stock: {producto.stock}
+                    <Badge variant={producto.stockDisponible > 0 ? 'default' : 'destructive'}>
+                      Stock: {producto.stockDisponible}
                     </Badge>
                   </div>
                 </CardContent>

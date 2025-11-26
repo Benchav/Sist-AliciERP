@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import type { Config } from '@/types';
+import { getApiErrorMessage } from '@/lib/errors';
 
 export default function Settings() {
   const queryClient = useQueryClient();
@@ -29,8 +30,8 @@ export default function Settings() {
       queryClient.invalidateQueries({ queryKey: ['config'] });
       toast.success('Configuración actualizada exitosamente');
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.error || 'Error al actualizar configuración');
+    onError: (error: unknown) => {
+      toast.error(getApiErrorMessage(error, 'Error al actualizar configuración'));
     },
   });
 

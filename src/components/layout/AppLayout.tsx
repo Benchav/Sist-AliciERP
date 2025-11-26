@@ -4,9 +4,10 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage } from '@/co
 import { Separator } from '@/components/ui/separator';
 import { useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
+import type { ReactNode } from 'react';
 
 interface AppLayoutProps {
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
 const routeNames: Record<string, string> = {

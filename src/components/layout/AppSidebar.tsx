@@ -7,11 +7,13 @@ import {
   Settings,
   LogOut,
   ChevronRight,
+  type LucideIcon,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuthStore } from '@/store/authStore';
 import { hasRole } from '@/lib/auth';
 import { useLocation } from 'react-router-dom';
+import type { UserRole } from '@/types';
 
 import {
   Sidebar,
@@ -27,53 +29,58 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
+type MenuItem = {
+  title: string;
+  icon: LucideIcon;
+  url: string;
+  roles: UserRole[];
+};
+
+const menuItems: MenuItem[] = [
+  {
+    title: 'Dashboard',
+    icon: LayoutDashboard,
+    url: '/',
+    roles: ['ADMIN', 'PANADERO', 'CAJERO'],
+  },
+  {
+    title: 'Punto de Venta',
+    icon: ShoppingCart,
+    url: '/pos',
+    roles: ['ADMIN', 'CAJERO'],
+  },
+  {
+    title: 'Inventario',
+    icon: Package,
+    url: '/inventory',
+    roles: ['ADMIN', 'PANADERO', 'CAJERO'],
+  },
+  {
+    title: 'Producción',
+    icon: Factory,
+    url: '/production',
+    roles: ['ADMIN', 'PANADERO'],
+  },
+  {
+    title: 'Ventas',
+    icon: Receipt,
+    url: '/sales',
+    roles: ['ADMIN', 'CAJERO'],
+  },
+  {
+    title: 'Configuración',
+    icon: Settings,
+    url: '/settings',
+    roles: ['ADMIN'],
+  },
+];
+
 export function AppSidebar() {
   const { user, logout } = useAuthStore();
   const { open } = useSidebar();
   const location = useLocation();
 
-  const menuItems = [
-    {
-      title: 'Dashboard',
-      icon: LayoutDashboard,
-      url: '/',
-      roles: ['ADMIN', 'PANADERO', 'CAJERO'],
-    },
-    {
-      title: 'Punto de Venta',
-      icon: ShoppingCart,
-      url: '/pos',
-      roles: ['ADMIN', 'CAJERO'],
-    },
-    {
-      title: 'Inventario',
-      icon: Package,
-      url: '/inventory',
-      roles: ['ADMIN', 'PANADERO', 'CAJERO'],
-    },
-    {
-      title: 'Producción',
-      icon: Factory,
-      url: '/production',
-      roles: ['ADMIN', 'PANADERO'],
-    },
-    {
-      title: 'Ventas',
-      icon: Receipt,
-      url: '/sales',
-      roles: ['ADMIN', 'CAJERO'],
-    },
-    {
-      title: 'Configuración',
-      icon: Settings,
-      url: '/settings',
-      roles: ['ADMIN'],
-    },
-  ];
-
-  const visibleItems = menuItems.filter((item) =>
-    hasRole(user, item.roles as any)
-  );
+  const visibleItems = menuItems.filter((item) => hasRole(user, item.roles));
 
   const getRoleBadgeColor = (role: string) => {
     switch (role) {

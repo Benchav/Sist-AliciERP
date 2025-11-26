@@ -2,9 +2,10 @@ import { Navigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
 import { hasRole } from '@/lib/auth';
 import type { UserRole } from '@/types';
+import type { ReactNode } from 'react';
 
 interface ProtectedRouteProps {
-  children: React.ReactNode;
+  children: ReactNode;
   allowedRoles?: UserRole[];
 }
 

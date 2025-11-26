@@ -18,14 +18,15 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { CalendarIcon, FileDown, FileText, Trash2 } from 'lucide-react';
+import { CalendarIcon, FileDown, FileText, Loader2, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { formatCurrency, formatDate } from '@/lib/format';
+import { formatCurrency } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { Venta } from '@/types';
 import { useAuthStore } from '@/store/authStore';
 import { hasRole } from '@/lib/auth';
+import { getApiErrorMessage } from '@/lib/errors';
 
 export default function Sales() {
   const { user } = useAuthStore();
@@ -55,53 +56,69 @@ export default function Sales() {
       queryClient.invalidateQueries({ queryKey: ['sales'] });
       toast.success('Venta anulada exitosamente');
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.error || 'Error al anular venta');
+    onError: (error: unknown) => {
+      toast.error(getApiErrorMessage(error, 'Error al anular venta'));
     },
   });
 
-  const handleViewPDF = async (id: string) => {
-    try {
-      const response = await api.get(`/sales/${id}/pdf`, {
-        responseType: 'blob',
-      });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `factura-${id}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    } catch (error: any) {
-      toast.error('Error al descargar factura');
-    }
+  const triggerDownload = (blob: Blob, filename: string) => {
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
   };
 
-  const handleExportExcel = async () => {
-    try {
+  const pdfMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await api.get<Blob>(`/sales/${id}/pdf`, {
+        responseType: 'blob' as const,
+      });
+      return data;
+    },
+    onSuccess: (blob, id) => {
+      triggerDownload(blob, `factura-${id}.pdf`);
+    },
+    onError: (error: unknown) => {
+      toast.error(getApiErrorMessage(error, 'Error al descargar factura'));
+    },
+  });
+
+  const exportExcelMutation = useMutation({
+    mutationFn: async ({ from, to }: { from?: string; to?: string }) => {
       let url = '/sales/report/excel';
       const params = new URLSearchParams();
-      if (dateFrom) params.append('from', format(dateFrom, 'yyyy-MM-dd'));
-      if (dateTo) params.append('to', format(dateTo, 'yyyy-MM-dd'));
-      if (params.toString()) url += `?${params.toString()}`;
+      if (from) params.append('from', from);
+      if (to) params.append('to', to);
+      if (params.toString()) {
+        url += `?${params.toString()}`;
+      }
 
-      const response = await api.get(url, {
-        responseType: 'blob',
+      const { data } = await api.get<Blob>(url, {
+        responseType: 'blob' as const,
       });
-      const downloadUrl = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.setAttribute('download', 'reporte-ventas.xlsx');
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+      return data;
+    },
+    onSuccess: (blob) => {
+      triggerDownload(blob, 'reporte-ventas.xlsx');
       toast.success('Reporte exportado exitosamente');
-    } catch (error: any) {
-      toast.error('Error al exportar reporte');
-    }
+    },
+    onError: (error: unknown) => {
+      toast.error(getApiErrorMessage(error, 'Error al exportar reporte'));
+    },
+  });
+
+  const handleExportExcel = () => {
+    exportExcelMutation.mutate({
+      from: dateFrom ? format(dateFrom, 'yyyy-MM-dd') : undefined,
+      to: dateTo ? format(dateTo, 'yyyy-MM-dd') : undefined,
+    });
   };
 
-  const isAdmin = user && hasRole(user, ['ADMIN']);
+  const isAdmin = hasRole(user, ['ADMIN']);
 
   return (
     <div className="space-y-6">
@@ -111,9 +128,18 @@ export default function Sales() {
           <p className="text-muted-foreground">Historial y reportes de ventas</p>
         </div>
         {isAdmin && (
-          <Button onClick={handleExportExcel}>
-            <FileDown className="mr-2 h-4 w-4" />
-            Exportar Excel
+          <Button onClick={handleExportExcel} disabled={exportExcelMutation.isPending}>
+            {exportExcelMutation.isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Generando...
+              </>
+            ) : (
+              <>
+                <FileDown className="mr-2 h-4 w-4" />
+                Exportar Excel
+              </>
+            )}
           </Button>
         )}
       </div>
@@ -178,69 +204,81 @@ export default function Sales() {
           <CardTitle>Historial de Ventas</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Fecha</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead>Items</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead>Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
+          <div className="overflow-x-auto rounded-lg border bg-card">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center">
-                    Cargando...
-                  </TableCell>
+                  <TableHead>Fecha</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead>Items</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>Acciones</TableHead>
                 </TableRow>
-              ) : sales?.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center">
-                    No hay ventas registradas
-                  </TableCell>
-                </TableRow>
-              ) : (
-                sales?.map((venta) => (
-                  <TableRow key={venta.id}>
-                    <TableCell>{format(new Date(venta.fecha), 'dd/MM/yyyy HH:mm')}</TableCell>
-                    <TableCell className="font-medium">
-                      {formatCurrency(venta.total)}
-                    </TableCell>
-                    <TableCell>{venta.items.length} items</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={venta.estado === 'ACTIVA' ? 'default' : 'destructive'}
-                      >
-                        {venta.estado}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleViewPDF(venta.id)}
-                        >
-                          <FileText className="h-4 w-4" />
-                        </Button>
-                        {isAdmin && venta.estado === 'ACTIVA' && (
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => deleteMutation.mutate(venta.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center">
+                      Cargando...
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : sales?.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center">
+                      No hay ventas registradas
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  sales?.map((venta) => (
+                    <TableRow key={venta.id}>
+                      <TableCell>{format(new Date(venta.fecha), 'dd/MM/yyyy HH:mm')}</TableCell>
+                      <TableCell className="font-medium">
+                        {formatCurrency(venta.total)}
+                      </TableCell>
+                      <TableCell>{venta.items.length} items</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={venta.estado === 'ACTIVA' ? 'default' : 'destructive'}
+                        >
+                          {venta.estado}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => pdfMutation.mutate(venta.id)}
+                            disabled={pdfMutation.isPending && pdfMutation.variables === venta.id}
+                          >
+                            {pdfMutation.isPending && pdfMutation.variables === venta.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <FileText className="h-4 w-4" />
+                            )}
+                          </Button>
+                          {isAdmin && venta.estado === 'ACTIVA' && (
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => deleteMutation.mutate(venta.id)}
+                              disabled={deleteMutation.isPending && deleteMutation.variables === venta.id}
+                            >
+                              {deleteMutation.isPending && deleteMutation.variables === venta.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
+                              )}
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
     </div>

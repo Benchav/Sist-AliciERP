@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -32,29 +32,43 @@ import { Label } from '@/components/ui/label';
 import { Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/format';
-import type { Producto, Receta, ProductionRequest } from '@/types';
+import { getApiErrorMessage } from '@/lib/errors';
+import type { Producto, Receta, ProductionRequest, Insumo } from '@/types';
 
 export default function Production() {
   const queryClient = useQueryClient();
   const [productionDialog, setProductionDialog] = useState(false);
-  const [selectedProductId, setSelectedProductId] = useState('');
+  const [selectedRecetaId, setSelectedRecetaId] = useState('');
   const [quantity, setQuantity] = useState('');
 
   const { data: productos } = useQuery({
     queryKey: ['productos'],
     queryFn: async () => {
-      const { data } = await api.get<Producto[]>('/products');
-      return data;
+      const { data } = await api.get<{ data: Producto[] }>('/production/products');
+      return data.data;
     },
   });
 
   const { data: recetas } = useQuery({
     queryKey: ['recetas'],
     queryFn: async () => {
-      const { data } = await api.get<Receta[]>('/products/recipes');
-      return data;
+      const { data } = await api.get<{ data: Receta[] }>('/production/recipes');
+      return data.data;
     },
   });
+
+  const { data: insumos } = useQuery({
+    queryKey: ['insumos'],
+    queryFn: async () => {
+      const { data } = await api.get<{ data: Insumo[] }>('/inventory');
+      return data.data;
+    },
+  });
+
+  const insumoMap = useMemo(() => {
+    if (!insumos) return new Map<string, Insumo>();
+    return new Map(insumos.map((insumo) => [insumo.id, insumo]));
+  }, [insumos]);
 
   const productionMutation = useMutation({
     mutationFn: async (request: ProductionRequest) => {
@@ -65,23 +79,25 @@ export default function Production() {
       queryClient.invalidateQueries({ queryKey: ['insumos'] });
       toast.success('Producción registrada exitosamente');
       setProductionDialog(false);
-      setSelectedProductId('');
+      setSelectedRecetaId('');
       setQuantity('');
     },
-    onError: (error: any) => {
-      toast.error(error.response?.data?.error || 'Error al registrar producción');
+    onError: (error: unknown) => {
+      toast.error(getApiErrorMessage(error, 'Error al registrar producción'));
     },
   });
 
   const handleProduction = () => {
-    if (!selectedProductId || !quantity) {
-      toast.error('Complete todos los campos');
+    const quantityValue = parseInt(quantity, 10);
+
+    if (!selectedRecetaId || Number.isNaN(quantityValue) || quantityValue <= 0) {
+      toast.error('Complete todos los campos con valores válidos');
       return;
     }
 
     productionMutation.mutate({
-      productoId: selectedProductId,
-      cantidad: parseInt(quantity),
+      recetaId: selectedRecetaId,
+      cantidad: quantityValue,
     });
   };
 
@@ -112,25 +128,32 @@ export default function Production() {
             <CardContent>
               {recetas?.map((receta) => (
                 <div key={receta.id} className="mb-6 last:mb-0">
-                  <h3 className="mb-2 text-lg font-semibold">{receta.producto.nombre}</h3>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Insumo</TableHead>
-                        <TableHead>Cantidad</TableHead>
-                        <TableHead>Unidad</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {receta.items.map((item, idx) => (
-                        <TableRow key={idx}>
-                          <TableCell>{item.insumo.nombre}</TableCell>
-                          <TableCell>{item.cantidad.toFixed(2)}</TableCell>
-                          <TableCell>{item.insumo.unidad}</TableCell>
+                  <h3 className="mb-2 text-lg font-semibold">
+                    {receta.producto?.nombre ?? receta.nombre}
+                  </h3>
+                  <div className="overflow-x-auto rounded-lg border bg-card">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Insumo</TableHead>
+                          <TableHead>Cantidad</TableHead>
+                          <TableHead>Unidad</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {receta.items.map((item, idx) => {
+                          const insumo = item.insumo ?? insumoMap.get(item.insumoId);
+                          return (
+                            <TableRow key={idx}>
+                              <TableCell>{insumo?.nombre ?? '—'}</TableCell>
+                              <TableCell>{item.cantidad.toFixed(2)}</TableCell>
+                              <TableCell>{insumo?.unidad ?? '—'}</TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
               ))}
             </CardContent>
@@ -143,26 +166,28 @@ export default function Production() {
               <CardTitle>Productos</CardTitle>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nombre</TableHead>
-                    <TableHead>Categoría</TableHead>
-                    <TableHead>Precio Venta</TableHead>
-                    <TableHead>Stock Actual</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {productos?.map((producto) => (
-                    <TableRow key={producto.id}>
-                      <TableCell className="font-medium">{producto.nombre}</TableCell>
-                      <TableCell>{producto.categoria}</TableCell>
-                      <TableCell>{formatCurrency(producto.precioVenta)}</TableCell>
-                      <TableCell>{producto.stock}</TableCell>
+              <div className="overflow-x-auto rounded-lg border bg-card">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nombre</TableHead>
+                      <TableHead>Categoría</TableHead>
+                      <TableHead>Precio Venta</TableHead>
+                      <TableHead>Stock Actual</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {productos?.map((producto) => (
+                      <TableRow key={producto.id}>
+                        <TableCell className="font-medium">{producto.nombre}</TableCell>
+                        <TableCell>{producto.categoria}</TableCell>
+                        <TableCell>{formatCurrency(producto.precioVenta)}</TableCell>
+                        <TableCell>{producto.stock}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

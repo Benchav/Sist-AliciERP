@@ -24,36 +24,32 @@ export interface Insumo {
 export interface Producto {
   id: string;
   nombre: string;
-  categoria: string;
+  categoria?: string;
   precioVenta: number;
-  stock: number;
+  stockDisponible: number;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface RecetaItem {
-  insumo: Insumo;
+  id: string;
+  insumoId: string;
   cantidad: number;
+  insumo?: Insumo;
 }
 
 export interface Receta {
   id: string;
-  producto: Producto;
+  nombre: string;
+  productoId: string;
+  producto?: Producto;
   items: RecetaItem[];
 }
 
-export interface Venta {
-  id: string;
-  fecha: string;
-  total: number;
-  items: VentaItem[];
-  pagos: Pago[];
-  estado: 'ACTIVA' | 'ANULADA';
-  createdAt: string;
-}
-
 export interface VentaItem {
-  producto: Producto;
+  id: string;
+  productoId: string;
+  productoNombre: string;
   cantidad: number;
   precioUnitario: number;
   subtotal: number;
@@ -61,7 +57,18 @@ export interface VentaItem {
 
 export interface Pago {
   moneda: 'NIO' | 'USD';
-  monto: number;
+  cantidad: number;
+  tasa?: number;
+}
+
+export interface Venta {
+  id: string;
+  fecha: string;
+  totalNIO: number;
+  items: VentaItem[];
+  pagos: Pago[];
+  estado: 'COMPLETA' | 'ANULADA';
+  createdAt: string;
 }
 
 export interface Config {
@@ -74,16 +81,17 @@ export interface CheckoutRequest {
     cantidad: number;
   }>;
   pagos: Pago[];
+  usuarioId: string;
 }
 
 export interface PurchaseRequest {
   insumoId: string;
   cantidad: number;
-  costo: number;
+  costoTotal: number;
 }
 
 export interface ProductionRequest {
-  productoId: string;
+  recetaId: string;
   cantidad: number;
 }
 

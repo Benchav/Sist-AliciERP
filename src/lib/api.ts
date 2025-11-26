@@ -1,49 +1,53 @@
-import axios from 'axios';
+import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosError } from 'axios';
+import { getApiErrorMessage, type ApiErrorPayload } from './errors';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://sist-alici.vercel.app';
+const DEFAULT_API_URL = 'https://sist-alici.vercel.app';
 
-export const api = axios.create({
-  baseURL: `${API_URL}/api`,
+const sanitizeBaseUrl = (url: string): string => url.replace(/\/$/, '');
+
+const rawEnvApiUrl = import.meta.env.VITE_API_URL?.trim();
+
+const API_BASE_URL = sanitizeBaseUrl(
+  rawEnvApiUrl && rawEnvApiUrl.length > 0 ? rawEnvApiUrl : DEFAULT_API_URL
+);
+
+export const AUTH_TOKEN_STORAGE_KEY = 'sist-alici-token';
+
+export const api: AxiosInstance = axios.create({
+  baseURL: `${API_BASE_URL}/api`,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Request interceptor to add JWT token
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
+const attachAuthToken = (config: AxiosRequestConfig): AxiosRequestConfig => {
+  const token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+  if (token) {
+    config.headers = {
+      ...config.headers,
+      Authorization: `Bearer ${token}`,
+    };
   }
-);
+  return config;
+};
 
-// Response interceptor for error handling
+api.interceptors.request.use(attachAuthToken);
+
+const handleUnauthorized = () => {
+  localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+  if (window.location.pathname !== '/login') {
+    window.location.replace('/login');
+  }
+};
+
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    // Handle unauthorized access
+  (error: AxiosError<ApiErrorPayload>) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      window.location.href = '/login';
+      handleUnauthorized();
     }
-    
-    // Extract error message from response
-    const errorMessage = error.response?.data?.error || 
-                        error.response?.data?.message || 
-                        error.message || 
-                        'An unexpected error occurred';
-    
-    // Re-throw with formatted error for consistency
-    return Promise.reject({
-      message: errorMessage,
-      status: error.response?.status,
-      original: error,
-    });
+
+    error.message = getApiErrorMessage(error);
+    return Promise.reject(error);
   }
 );
