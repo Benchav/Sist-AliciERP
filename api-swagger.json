@@ -1,0 +1,17 @@
+
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "Alici ERP API",
+    "version": "1.0.0",
+    "description": "Replace this description with details about your API."
+  },
+  "servers": [
+    {
+      "url": "https://api.example.com",
+      "description": "Replace with your API base URL."
+    }
+  ],
+  "paths": {},
+  "components": {}
+}

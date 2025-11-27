@@ -4,13 +4,6 @@
  */
 
 /**
- * Convert cents to display amount (divide by 100)
- */
-export const centsToAmount = (cents: number): number => {
-  return cents / 100;
-};
-
-/**
  * Convert display amount to cents (multiply by 100)
  */
 export const amountToCents = (amount: number): number => {
@@ -18,10 +11,9 @@ export const amountToCents = (amount: number): number => {
 };
 
 /**
- * Format currency for display with symbol
+ * Format currency for display with symbol (values are already in C$)
  */
-export const formatCurrency = (cents: number, currency: 'NIO' | 'USD' = 'NIO'): string => {
-  const amount = centsToAmount(cents);
+export const formatCurrency = (amount: number, currency: 'NIO' | 'USD' = 'NIO'): string => {
   const symbol = currency === 'NIO' ? 'C$' : '$';
   
   return `${symbol} ${amount.toLocaleString('en-US', {
@@ -58,19 +50,19 @@ export const calculateTotalPayment = (
   usdAmount: number,
   exchangeRate: number
 ): number => {
-  return amountToCents(nioAmount) + amountToCents(usdAmount * exchangeRate);
+  return nioAmount + usdAmount * exchangeRate;
 };
 
 /**
  * Calculate change from payment
  */
 export const calculateChange = (
-  totalCents: number,
+  totalAmount: number,
   nioPayment: number,
   usdPayment: number,
   exchangeRate: number
 ): number => {
   const totalPayment = calculateTotalPayment(nioPayment, usdPayment, exchangeRate);
-  const change = totalPayment - totalCents;
+  const change = totalPayment - totalAmount;
   return change > 0 ? change : 0;
 };

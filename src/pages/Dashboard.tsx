@@ -1,17 +1,54 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertCircle, DollarSign, Package, ShoppingBag } from 'lucide-react';
+import { AlertCircle, DollarSign, ShoppingBag } from 'lucide-react';
 import { formatCurrency } from '@/lib/format';
-import type { DashboardStats } from '@/types';
+import type { DashboardStats, Producto, Insumo, Venta } from '@/types';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAuthStore } from '@/store/authStore';
 
 export default function Dashboard() {
+  const { user } = useAuthStore();
   const { data: stats, isLoading } = useQuery({
-    queryKey: ['dashboard-stats'],
-    queryFn: async () => {
-      const { data } = await api.get<DashboardStats>('/dashboard/stats');
-      return data;
+    queryKey: ['dashboard-stats', user?.role],
+    queryFn: async (): Promise<DashboardStats> => {
+      const [productosRes, insumosRes] = await Promise.all([
+        api.get<{ data: Producto[] }>('/production/products'),
+        api.get<{ data: Insumo[] }>('/inventory'),
+      ]);
+
+      const productos = productosRes.data.data;
+      const insumos = insumosRes.data.data;
+
+      const productosDisponibles = productos.filter((producto) => producto.stockDisponible > 0).length;
+      const insumosStockBajo = insumos.filter((insumo) => insumo.stock < 10).length;
+
+      let ventasHoy = 0;
+      if (user && (user.role === 'ADMIN' || user.role === 'CAJERO')) {
+        try {
+          const start = new Date();
+          start.setHours(0, 0, 0, 0);
+          const end = new Date();
+          end.setHours(23, 59, 59, 999);
+
+          const { data } = await api.get<{ data: Venta[] }>('/sales', {
+            params: {
+              from: start.toISOString(),
+              to: end.toISOString(),
+            },
+          });
+
+          ventasHoy = data.data.reduce((total, venta) => total + venta.totalNIO, 0);
+        } catch (error) {
+          console.warn('No se pudo obtener ventas del día', error);
+        }
+      }
+
+      return {
+        ventasHoy,
+        insumosStockBajo,
+        productosDisponibles,
+      };
     },
   });
 

@@ -19,10 +19,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Plus } from 'lucide-react';
+import { Plus, PenSquare, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency, amountToCents } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
@@ -37,6 +47,16 @@ export default function Inventory() {
   const [selectedInsumo, setSelectedInsumo] = useState<Insumo | null>(null);
   const [quantity, setQuantity] = useState('');
   const [cost, setCost] = useState('');
+  const [insumoDialogOpen, setInsumoDialogOpen] = useState(false);
+  const [editingInsumo, setEditingInsumo] = useState<Insumo | null>(null);
+  const [insumoForm, setInsumoForm] = useState({
+    nombre: '',
+    unidad: '',
+    stock: '',
+    costoPromedio: '',
+  });
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [insumoToDelete, setInsumoToDelete] = useState<Insumo | null>(null);
 
   const { data: insumos, isLoading } = useQuery({
     queryKey: ['insumos'],
@@ -45,6 +65,27 @@ export default function Inventory() {
       return data.data;
     },
   });
+
+  const resetInsumoForm = () => {
+    setInsumoForm({ nombre: '', unidad: '', stock: '', costoPromedio: '' });
+    setEditingInsumo(null);
+  };
+
+  const openNewInsumoDialog = () => {
+    resetInsumoForm();
+    setInsumoDialogOpen(true);
+  };
+
+  const openEditInsumoDialog = (insumo: Insumo) => {
+    setEditingInsumo(insumo);
+    setInsumoForm({
+      nombre: insumo.nombre,
+      unidad: insumo.unidad,
+      stock: insumo.stock.toString(),
+      costoPromedio: insumo.costoPromedio.toString(),
+    });
+    setInsumoDialogOpen(true);
+  };
 
   const purchaseMutation = useMutation({
     mutationFn: async (request: PurchaseRequest) => {
@@ -60,6 +101,58 @@ export default function Inventory() {
     },
     onError: (error: unknown) => {
       toast.error(getApiErrorMessage(error, 'Error al registrar compra'));
+    },
+  });
+
+  type InsumoPayload = {
+    nombre: string;
+    unidad: string;
+    stock: number;
+    costoPromedio: number;
+  };
+
+  const createInsumoMutation = useMutation({
+    mutationFn: async (payload: InsumoPayload) => {
+      await api.post('/inventory', payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['insumos'] });
+      toast.success('Insumo creado correctamente');
+      setInsumoDialogOpen(false);
+      resetInsumoForm();
+    },
+    onError: (error: unknown) => {
+      toast.error(getApiErrorMessage(error, 'Error al crear insumo'));
+    },
+  });
+
+  const updateInsumoMutation = useMutation({
+    mutationFn: async ({ id, payload }: { id: string; payload: InsumoPayload }) => {
+      await api.put(`/inventory/${id}`, payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['insumos'] });
+      toast.success('Insumo actualizado correctamente');
+      setInsumoDialogOpen(false);
+      resetInsumoForm();
+    },
+    onError: (error: unknown) => {
+      toast.error(getApiErrorMessage(error, 'Error al actualizar insumo'));
+    },
+  });
+
+  const deleteInsumoMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await api.delete(`/inventory/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['insumos'] });
+      toast.success('Insumo eliminado correctamente');
+      setDeleteDialogOpen(false);
+      setInsumoToDelete(null);
+    },
+    onError: (error: unknown) => {
+      toast.error(getApiErrorMessage(error, 'Error al eliminar insumo'));
     },
   });
 
@@ -94,7 +187,53 @@ export default function Inventory() {
     setPurchaseDialog(true);
   };
 
+  const handleSaveInsumo = () => {
+    const stockValue = parseFloat(insumoForm.stock);
+    const costValue = parseFloat(insumoForm.costoPromedio);
+
+    if (!insumoForm.nombre.trim() || !insumoForm.unidad.trim()) {
+      toast.error('Nombre y unidad son obligatorios');
+      return;
+    }
+
+    if (Number.isNaN(stockValue) || stockValue < 0) {
+      toast.error('Ingrese un stock válido');
+      return;
+    }
+
+    if (Number.isNaN(costValue) || costValue < 0) {
+      toast.error('Ingrese un costo válido');
+      return;
+    }
+
+    const payload = {
+      nombre: insumoForm.nombre.trim(),
+      unidad: insumoForm.unidad.trim(),
+      stock: stockValue,
+      costoPromedio: costValue,
+    };
+
+    if (editingInsumo) {
+      updateInsumoMutation.mutate({ id: editingInsumo.id, payload });
+    } else {
+      createInsumoMutation.mutate(payload);
+    }
+  };
+
+  const openDeleteDialog = (insumo: Insumo) => {
+    setInsumoToDelete(insumo);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteInsumo = () => {
+    if (insumoToDelete) {
+      deleteInsumoMutation.mutate(insumoToDelete.id);
+    }
+  };
+
   const isAdmin = hasRole(user, ['ADMIN']);
+  const isSavingInsumo = createInsumoMutation.isPending || updateInsumoMutation.isPending;
+  const isDeletingInsumo = deleteInsumoMutation.isPending;
 
   return (
     <div className="space-y-6">
@@ -103,6 +242,12 @@ export default function Inventory() {
           <h1 className="text-3xl font-bold tracking-tight">Inventario</h1>
           <p className="text-muted-foreground">Gestión de insumos</p>
         </div>
+        {isAdmin && (
+          <Button onClick={openNewInsumoDialog}>
+            <Plus className="mr-2 h-4 w-4" />
+            Nuevo insumo
+          </Button>
+        )}
       </div>
 
       <Card>
@@ -151,14 +296,32 @@ export default function Inventory() {
                       </TableCell>
                       {isAdmin && (
                         <TableCell>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => openPurchaseDialog(insumo)}
-                          >
-                            <Plus className="mr-2 h-4 w-4" />
-                            Compra
-                          </Button>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => openEditInsumoDialog(insumo)}
+                            >
+                              <PenSquare className="mr-2 h-4 w-4" />
+                              Editar
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => openPurchaseDialog(insumo)}
+                            >
+                              <Plus className="mr-2 h-4 w-4" />
+                              Compra
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => openDeleteDialog(insumo)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Eliminar
+                            </Button>
+                          </div>
                         </TableCell>
                       )}
                     </TableRow>
@@ -169,6 +332,104 @@ export default function Inventory() {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog
+        open={insumoDialogOpen}
+        onOpenChange={(open) => {
+          setInsumoDialogOpen(open);
+          if (!open) {
+            resetInsumoForm();
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingInsumo ? 'Editar insumo' : 'Nuevo insumo'}</DialogTitle>
+            <DialogDescription>
+              Complete los campos para {editingInsumo ? 'actualizar' : 'registrar'} un insumo.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="insumo-nombre">Nombre</Label>
+              <Input
+                id="insumo-nombre"
+                value={insumoForm.nombre}
+                onChange={(e) => setInsumoForm((prev) => ({ ...prev, nombre: e.target.value }))}
+                placeholder="Harina, azúcar, ..."
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="insumo-unidad">Unidad</Label>
+              <Input
+                id="insumo-unidad"
+                value={insumoForm.unidad}
+                onChange={(e) => setInsumoForm((prev) => ({ ...prev, unidad: e.target.value }))}
+                placeholder="kg, lt, caja..."
+              />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="insumo-stock">Stock inicial</Label>
+                <Input
+                  id="insumo-stock"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={insumoForm.stock}
+                  onChange={(e) => setInsumoForm((prev) => ({ ...prev, stock: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="insumo-costo">Costo promedio (C$)</Label>
+                <Input
+                  id="insumo-costo"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={insumoForm.costoPromedio}
+                  onChange={(e) =>
+                    setInsumoForm((prev) => ({ ...prev, costoPromedio: e.target.value }))
+                  }
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setInsumoDialogOpen(false)} disabled={isSavingInsumo}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveInsumo} disabled={isSavingInsumo}>
+              {isSavingInsumo ? 'Guardando...' : 'Guardar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog
+        open={deleteDialogOpen}
+        onOpenChange={(open) => {
+          setDeleteDialogOpen(open);
+          if (!open) {
+            setInsumoToDelete(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar insumo</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción eliminará "{insumoToDelete?.nombre}" y no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingInsumo}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteInsumo} disabled={isDeletingInsumo}>
+              {isDeletingInsumo ? 'Eliminando...' : 'Eliminar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={purchaseDialog} onOpenChange={setPurchaseDialog}>
         <DialogContent>

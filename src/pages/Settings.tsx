@@ -16,9 +16,9 @@ export default function Settings() {
   const { data: config } = useQuery({
     queryKey: ['config'],
     queryFn: async () => {
-      const { data } = await api.get<Config>('/config');
-      setExchangeRate(data.tasaCambio.toString());
-      return data;
+      const { data } = await api.get<{ data: Config }>('/config');
+      setExchangeRate(data.data.tasaCambio.toString());
+      return data.data;
     },
   });
 

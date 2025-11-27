@@ -6,9 +6,17 @@ export interface User {
   role: UserRole;
 }
 
+export interface AuthUserPayload {
+  id: string;
+  username: string;
+  role?: UserRole;
+  rol?: UserRole;
+  nombre?: string;
+}
+
 export interface AuthResponse {
   token: string;
-  user: User;
+  user: AuthUserPayload;
 }
 
 export interface Insumo {
@@ -42,6 +50,7 @@ export interface Receta {
   id: string;
   nombre: string;
   productoId: string;
+  costoManoObra?: number;
   producto?: Producto;
   items: RecetaItem[];
 }
@@ -81,7 +90,6 @@ export interface CheckoutRequest {
     cantidad: number;
   }>;
   pagos: Pago[];
-  usuarioId: string;
 }
 
 export interface PurchaseRequest {

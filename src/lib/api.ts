@@ -1,4 +1,9 @@
-import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosError } from 'axios';
+import axios, {
+  AxiosHeaders,
+  type AxiosInstance,
+  type InternalAxiosRequestConfig,
+  type AxiosError,
+} from 'axios';
 import { getApiErrorMessage, type ApiErrorPayload } from './errors';
 
 const DEFAULT_API_URL = 'https://sist-alici.vercel.app';
@@ -20,13 +25,18 @@ export const api: AxiosInstance = axios.create({
   },
 });
 
-const attachAuthToken = (config: AxiosRequestConfig): AxiosRequestConfig => {
+const attachAuthToken = (config: InternalAxiosRequestConfig): InternalAxiosRequestConfig => {
   const token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
   if (token) {
-    config.headers = {
-      ...config.headers,
-      Authorization: `Bearer ${token}`,
-    };
+    let headers = config.headers;
+    if (!headers || typeof headers === 'function') {
+      headers = new AxiosHeaders();
+    } else if (!(headers instanceof AxiosHeaders)) {
+      headers = new AxiosHeaders(headers);
+    }
+
+    headers.set('Authorization', `Bearer ${token}`);
+    config.headers = headers;
   }
   return config;
 };

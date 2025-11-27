@@ -181,7 +181,6 @@ export default function POS() {
         cantidad: item.cantidad,
       })),
       pagos,
-      usuarioId: user.id,
     };
 
     checkoutMutation.mutate(request);

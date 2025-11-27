@@ -37,14 +37,14 @@ export default function Sales() {
   const { data: sales, isLoading } = useQuery({
     queryKey: ['sales', dateFrom, dateTo],
     queryFn: async () => {
-      let url = '/sales';
-      const params = new URLSearchParams();
-      if (dateFrom) params.append('from', format(dateFrom, 'yyyy-MM-dd'));
-      if (dateTo) params.append('to', format(dateTo, 'yyyy-MM-dd'));
-      if (params.toString()) url += `?${params.toString()}`;
+      const params: Record<string, string> = {};
+      if (dateFrom) params.from = dateFrom.toISOString();
+      if (dateTo) params.to = dateTo.toISOString();
 
-      const { data } = await api.get<Venta[]>(url);
-      return data;
+      const { data } = await api.get<{ data: Venta[] }>('/sales', {
+        params: Object.keys(params).length ? params : undefined,
+      });
+      return data.data;
     },
   });
 
@@ -89,16 +89,12 @@ export default function Sales() {
 
   const exportExcelMutation = useMutation({
     mutationFn: async ({ from, to }: { from?: string; to?: string }) => {
-      let url = '/sales/report/excel';
-      const params = new URLSearchParams();
-      if (from) params.append('from', from);
-      if (to) params.append('to', to);
-      if (params.toString()) {
-        url += `?${params.toString()}`;
-      }
-
-      const { data } = await api.get<Blob>(url, {
+      const { data } = await api.get<Blob>('/sales/report/excel', {
         responseType: 'blob' as const,
+        params: {
+          ...(from ? { from } : {}),
+          ...(to ? { to } : {}),
+        },
       });
       return data;
     },
@@ -113,8 +109,8 @@ export default function Sales() {
 
   const handleExportExcel = () => {
     exportExcelMutation.mutate({
-      from: dateFrom ? format(dateFrom, 'yyyy-MM-dd') : undefined,
-      to: dateTo ? format(dateTo, 'yyyy-MM-dd') : undefined,
+      from: dateFrom ? dateFrom.toISOString() : undefined,
+      to: dateTo ? dateTo.toISOString() : undefined,
     });
   };
 
@@ -233,13 +229,11 @@ export default function Sales() {
                     <TableRow key={venta.id}>
                       <TableCell>{format(new Date(venta.fecha), 'dd/MM/yyyy HH:mm')}</TableCell>
                       <TableCell className="font-medium">
-                        {formatCurrency(venta.total)}
+                        {formatCurrency(venta.totalNIO)}
                       </TableCell>
                       <TableCell>{venta.items.length} items</TableCell>
                       <TableCell>
-                        <Badge
-                          variant={venta.estado === 'ACTIVA' ? 'default' : 'destructive'}
-                        >
+                        <Badge variant={venta.estado === 'ANULADA' ? 'destructive' : 'default'}>
                           {venta.estado}
                         </Badge>
                       </TableCell>
@@ -257,7 +251,7 @@ export default function Sales() {
                               <FileText className="h-4 w-4" />
                             )}
                           </Button>
-                          {isAdmin && venta.estado === 'ACTIVA' && (
+                          {isAdmin && venta.estado !== 'ANULADA' && (
                             <Button
                               size="sm"
                               variant="destructive"
