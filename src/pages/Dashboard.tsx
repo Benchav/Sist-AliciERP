@@ -7,7 +7,7 @@ import { formatCurrency } from '@/lib/format';
 import type { DashboardStats, Producto, Insumo, Venta } from '@/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuthStore } from '@/store/authStore';
-import { format } from 'date-fns';
+import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 
@@ -30,33 +30,51 @@ export default function Dashboard() {
       const insumosStockBajo = insumos.filter((insumo) => insumo.stock < 10).length;
 
       let ventasHoy = 0;
+      let ventasMes = 0;
+      let ventasMesAnterior = 0;
       let recentSales: Venta[] = [];
 
       if (user && (user.role === 'ADMIN' || user.role === 'CAJERO')) {
         try {
-          const start = new Date();
-          start.setHours(0, 0, 0, 0);
-          const end = new Date();
-          end.setHours(23, 59, 59, 999);
+          const now = new Date();
+          const startDay = new Date(now); startDay.setHours(0, 0, 0, 0);
+          const endDay = new Date(now); endDay.setHours(23, 59, 59, 999);
 
-          const { data } = await api.get<{ data: Venta[] }>('/sales', {
-            params: {
-              from: start.toISOString(),
-              to: end.toISOString(),
-            },
-          });
+          const startMonth = startOfMonth(now);
+          const endMonth = endOfMonth(now);
+          
+          const startPrevMonth = startOfMonth(subMonths(now, 1));
+          const endPrevMonth = endOfMonth(subMonths(now, 1));
 
-          ventasHoy = data.data.reduce((total, venta) => total + venta.totalNIO, 0);
-          // Get last 5 sales
-          recentSales = data.data.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()).slice(0, 5);
+          const [dayRes, monthRes, prevMonthRes] = await Promise.all([
+            api.get<{ data: Venta[] }>('/sales', {
+                params: { from: startDay.toISOString(), to: endDay.toISOString() }
+            }),
+            api.get<{ data: Venta[] }>('/sales', {
+                params: { from: startMonth.toISOString(), to: endMonth.toISOString() }
+            }),
+            api.get<{ data: Venta[] }>('/sales', {
+                params: { from: startPrevMonth.toISOString(), to: endPrevMonth.toISOString() }
+            })
+          ]);
+
+          const ventasDiaData = dayRes.data.data;
+          ventasHoy = ventasDiaData.reduce((total, venta) => total + (venta.estado === 'COMPLETA' ? venta.totalNIO : 0), 0);
+          recentSales = ventasDiaData.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()).slice(0, 5);
+
+          ventasMes = monthRes.data.data.reduce((total, venta) => total + (venta.estado === 'COMPLETA' ? venta.totalNIO : 0), 0);
+          ventasMesAnterior = prevMonthRes.data.data.reduce((total, venta) => total + (venta.estado === 'COMPLETA' ? venta.totalNIO : 0), 0);
+
         } catch (error) {
-          console.warn('No se pudo obtener ventas del día', error);
+          console.warn('No se pudo obtener ventas', error);
         }
       }
 
       return {
         stats: {
           ventasHoy,
+          ventasMes,
+          ventasMesAnterior,
           insumosStockBajo,
           productosDisponibles,
         },
@@ -324,11 +342,20 @@ export default function Dashboard() {
                 <TrendingUp className="h-5 w-5 text-white" />
               </div>
               <h3 className="text-lg font-semibold">Objetivo Mensual</h3>
+              <div className="mt-2 flex items-baseline gap-2">
+                <span className="text-2xl font-bold">{stats?.ventasMes ? formatCurrency(stats.ventasMes) : 'C$0.00'}</span>
+                <span className="text-sm text-slate-400">/ {stats?.ventasMesAnterior ? formatCurrency(stats.ventasMesAnterior) : 'C$0.00'}</span>
+              </div>
               <p className="mt-1 text-sm text-slate-300">
-                Mantén el ritmo de ventas para superar el mes anterior.
+                {stats?.ventasMesAnterior && stats.ventasMes >= stats.ventasMesAnterior 
+                  ? '¡Has superado las ventas del mes anterior!' 
+                  : 'Mantén el ritmo para superar el mes anterior.'}
               </p>
               <div className="mt-4 h-1.5 w-full rounded-full bg-white/10">
-                <div className="h-1.5 w-3/4 rounded-full bg-gradient-to-r from-indigo-400 to-violet-400" />
+                <div 
+                  className="h-1.5 rounded-full bg-gradient-to-r from-indigo-400 to-violet-400 transition-all duration-1000" 
+                  style={{ width: `${Math.min(((stats?.ventasMes || 0) / (stats?.ventasMesAnterior || 1)) * 100, 100)}%` }}
+                />
               </div>
             </div>
           </div>
