@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -19,7 +19,8 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { CalendarIcon, FileDown, FileText, Loader2, Trash2 } from 'lucide-react';
-import { format } from 'date-fns';
+import { endOfDay, endOfMonth, format, isSameDay, isWithinInterval, startOfDay, startOfMonth, subDays, subMonths } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -28,19 +29,23 @@ import { useAuthStore } from '@/store/authStore';
 import { hasRole } from '@/lib/auth';
 import { getApiErrorMessage } from '@/lib/errors';
 import { PageHeading } from '@/components/PageHeading';
+import type { DateRange } from 'react-day-picker';
 
 export default function Sales() {
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
-  const [dateFrom, setDateFrom] = useState<Date>();
-  const [dateTo, setDateTo] = useState<Date>();
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const fromISO = dateRange?.from ? startOfDay(dateRange.from).toISOString() : undefined;
+  const toISO = dateRange?.from
+    ? endOfDay((dateRange.to ?? dateRange.from)).toISOString()
+    : undefined;
 
   const { data: sales, isLoading } = useQuery({
-    queryKey: ['sales', dateFrom, dateTo],
+    queryKey: ['sales', fromISO, toISO],
     queryFn: async () => {
       const params: Record<string, string> = {};
-      if (dateFrom) params.from = dateFrom.toISOString();
-      if (dateTo) params.to = dateTo.toISOString();
+      if (fromISO) params.from = fromISO;
+      if (toISO) params.to = toISO;
 
       const { data } = await api.get<{ data: Venta[] }>('/sales', {
         params: Object.keys(params).length ? params : undefined,
@@ -110,12 +115,85 @@ export default function Sales() {
 
   const handleExportExcel = () => {
     exportExcelMutation.mutate({
-      from: dateFrom ? dateFrom.toISOString() : undefined,
-      to: dateTo ? dateTo.toISOString() : undefined,
+      from: fromISO,
+      to: toISO,
     });
   };
 
   const isAdmin = hasRole(user, ['ADMIN']);
+  const quickPresets = useMemo(
+    () => [
+      {
+        label: 'Hoy',
+        getRange: (): DateRange => {
+          const today = new Date();
+          return { from: startOfDay(today), to: endOfDay(today) };
+        },
+      },
+      {
+        label: 'Ayer',
+        getRange: (): DateRange => {
+          const yesterday = subDays(new Date(), 1);
+          return { from: startOfDay(yesterday), to: endOfDay(yesterday) };
+        },
+      },
+      {
+        label: 'Últimos 7 días',
+        getRange: (): DateRange => {
+          const today = new Date();
+          return { from: startOfDay(subDays(today, 7)), to: endOfDay(today) };
+        },
+      },
+      {
+        label: 'Este Mes',
+        getRange: (): DateRange => {
+          const today = new Date();
+          return { from: startOfMonth(today), to: endOfMonth(today) };
+        },
+      },
+      {
+        label: 'Mes Pasado',
+        getRange: (): DateRange => {
+          const previousMonth = subMonths(new Date(), 1);
+          return { from: startOfMonth(previousMonth), to: endOfMonth(previousMonth) };
+        },
+      },
+    ],
+    [],
+  );
+
+  const handlePresetClick = (getRange: () => DateRange) => {
+    setDateRange(getRange());
+  };
+
+  const rangeLabel = useMemo(() => {
+    if (!dateRange?.from) return 'Seleccionar fechas';
+    const sameDaySelection = !dateRange.to || isSameDay(dateRange.from, dateRange.to);
+    const hasDifferentYears = dateRange.to
+      ? dateRange.from.getFullYear() !== dateRange.to.getFullYear()
+      : false;
+    const baseFormat = hasDifferentYears ? 'dd MMM y' : 'dd MMM';
+
+    if (sameDaySelection) {
+      return format(dateRange.from, baseFormat, { locale: es });
+    }
+
+    const fromLabel = format(dateRange.from, baseFormat, { locale: es });
+    const toLabel = format(dateRange.to as Date, baseFormat, { locale: es });
+    return `${fromLabel} - ${toLabel}`;
+  }, [dateRange]);
+
+  const filteredSales = useMemo(() => {
+    if (!sales) return [];
+    if (!dateRange?.from) return sales;
+
+    const rangeStart = startOfDay(dateRange.from);
+    const rangeEnd = endOfDay(dateRange.to ?? dateRange.from);
+
+    return sales.filter((venta) =>
+      isWithinInterval(new Date(venta.fecha), { start: rangeStart, end: rangeEnd }),
+    );
+  }, [sales, dateRange]);
 
   return (
     <div className="space-y-6">
@@ -157,46 +235,43 @@ export default function Sales() {
                 size="lg"
                 className={cn(
                   'w-full justify-between text-left font-normal sm:w-auto',
-                  !dateFrom && 'text-muted-foreground'
+                  !dateRange?.from && 'text-muted-foreground',
                 )}
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {dateFrom ? format(dateFrom, 'PPP') : <span>Desde</span>}
+                {rangeLabel}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={dateFrom}
-                onSelect={setDateFrom}
-                initialFocus
-                className="pointer-events-auto"
-              />
-            </PopoverContent>
-          </Popover>
-
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                size="lg"
-                className={cn(
-                  'w-full justify-between text-left font-normal sm:w-auto',
-                  !dateTo && 'text-muted-foreground'
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {dateTo ? format(dateTo, 'PPP') : <span>Hasta</span>}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={dateTo}
-                onSelect={setDateTo}
-                initialFocus
-                className="pointer-events-auto"
-              />
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Calendar
+                  mode="range"
+                  selected={dateRange}
+                  onSelect={setDateRange}
+                  numberOfMonths={1}
+                  initialFocus
+                  defaultMonth={dateRange?.from ?? new Date()}
+                  className="pointer-events-auto"
+                />
+                <div className="min-w-[180px] border-t p-4 sm:border-l sm:border-t-0">
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Preajustes rápidos
+                  </p>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-1">
+                    {quickPresets.map((preset) => (
+                      <Button
+                        key={preset.label}
+                        variant="ghost"
+                        size="sm"
+                        className="justify-start"
+                        onClick={() => handlePresetClick(preset.getRange)}
+                      >
+                        {preset.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </PopoverContent>
           </Popover>
         </CardContent>
@@ -226,14 +301,14 @@ export default function Sales() {
                       Cargando...
                     </TableCell>
                   </TableRow>
-                ) : sales?.length === 0 ? (
+                ) : filteredSales.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={5} className="text-center">
                       No hay ventas registradas
                     </TableCell>
                   </TableRow>
                 ) : (
-                  sales?.map((venta) => (
+                  filteredSales.map((venta) => (
                     <TableRow key={venta.id}>
                       <TableCell>{format(new Date(venta.fecha), 'dd/MM/yyyy HH:mm')}</TableCell>
                       <TableCell className="font-medium">
@@ -286,10 +361,10 @@ export default function Sales() {
           <div className="space-y-3 md:hidden">
             {isLoading ? (
               <p className="text-center text-sm text-muted-foreground">Cargando...</p>
-            ) : sales?.length === 0 ? (
+            ) : filteredSales.length === 0 ? (
               <p className="text-center text-sm text-muted-foreground">No hay ventas registradas</p>
             ) : (
-              sales?.map((venta) => (
+              filteredSales.map((venta) => (
                 <div key={venta.id} className="space-y-2 rounded-lg border p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
