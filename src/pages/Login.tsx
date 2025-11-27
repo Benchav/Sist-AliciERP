@@ -111,7 +111,7 @@ export default function Login() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between">
+          { /*     <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <Checkbox id="remember" className="border-slate-300 data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600" />
                   <label
@@ -119,12 +119,12 @@ export default function Login() {
                     className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-slate-500"
                   >
                     Recordarme
-                  </label>
+                  </label> 
                 </div>
                 <a href="#" className="text-xs font-medium text-indigo-600 hover:text-indigo-500 hover:underline">
                   ¿Olvidaste tu clave?
-                </a>
-              </div>
+                </a> 
+              </div> */}
 
               <Button
                 type="submit"
@@ -149,16 +149,16 @@ export default function Login() {
           <div className="border-t border-slate-100 bg-slate-50/50 p-4 text-center">
             <div className="flex items-center justify-center gap-2 text-xs font-medium text-slate-500">
               <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
-              <span>Acceso seguro con encriptación SSL</span>
+              <span>Acceso seguro con encriptación</span>
             </div>
           </div>
         </div>
         
-        <div className="mt-8 flex justify-center gap-6 text-slate-400">
+     {/*   <div className="mt-8 flex justify-center gap-6 text-slate-400">
           <a href="#" className="text-xs hover:text-slate-600 transition-colors">Términos</a>
           <a href="#" className="text-xs hover:text-slate-600 transition-colors">Privacidad</a>
           <a href="#" className="text-xs hover:text-slate-600 transition-colors">Ayuda</a>
-        </div>
+        </div> */}
       </div>
     </div>
   );
