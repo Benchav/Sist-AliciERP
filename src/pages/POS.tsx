@@ -490,19 +490,22 @@ export default function POS() {
 
       {!isDesktop && (
         <>
-          <div className="pointer-events-none fixed inset-x-0 bottom-4 z-30 px-4 lg:hidden">
+          <div className="fixed inset-x-0 bottom-4 z-50 px-4 lg:hidden">
             <Button
-              className="pointer-events-auto w-full shadow-xl bg-indigo-600 hover:bg-indigo-700 text-white h-14 rounded-xl"
+              className="w-full shadow-xl bg-indigo-600 hover:bg-indigo-700 text-white h-14 rounded-xl transition-all active:scale-95"
               size="lg"
               onClick={() => setMobileCartOpen(true)}
-              disabled={cart.length === 0}
             >
               <div className="flex w-full items-center justify-between px-2">
                 <div className="flex items-center gap-2">
                   <ShoppingCart className="h-5 w-5" />
-                  <span className="font-semibold">Ver Carrito ({cart.length})</span>
+                  <span className="font-semibold">
+                    {cart.length === 0 ? 'Ver Carrito' : `Ver Carrito (${cart.length})`}
+                  </span>
                 </div>
-                <span className="font-bold text-lg">{formatCurrency(totalNIO)}</span>
+                {cart.length > 0 && (
+                  <span className="font-bold text-lg">{formatCurrency(totalNIO)}</span>
+                )}
               </div>
             </Button>
           </div>
