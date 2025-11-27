@@ -341,21 +341,25 @@ export default function Dashboard() {
               <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-white/10 backdrop-blur-sm">
                 <TrendingUp className="h-5 w-5 text-white" />
               </div>
-              <h3 className="text-lg font-semibold">Objetivo Mensual</h3>
+              <h3 className="text-lg font-semibold">Ventas del Mes</h3>
               <div className="mt-2 flex items-baseline gap-2">
                 <span className="text-2xl font-bold">{stats?.ventasMes ? formatCurrency(stats.ventasMes) : 'C$0.00'}</span>
-                <span className="text-sm text-slate-400">/ {stats?.ventasMesAnterior ? formatCurrency(stats.ventasMesAnterior) : 'C$0.00'}</span>
               </div>
-              <p className="mt-1 text-sm text-slate-300">
-                {stats?.ventasMesAnterior && stats.ventasMes >= stats.ventasMesAnterior 
-                  ? '¡Has superado las ventas del mes anterior!' 
-                  : 'Mantén el ritmo para superar el mes anterior.'}
+              <p className="mt-1 text-sm text-slate-300 capitalize">
+                Total acumulado en {format(new Date(), 'MMMM', { locale: es })}
               </p>
-              <div className="mt-4 h-1.5 w-full rounded-full bg-white/10">
-                <div 
-                  className="h-1.5 rounded-full bg-gradient-to-r from-indigo-400 to-violet-400 transition-all duration-1000" 
-                  style={{ width: `${Math.min(((stats?.ventasMes || 0) / (stats?.ventasMesAnterior || 1)) * 100, 100)}%` }}
-                />
+              
+              <div className="mt-4">
+                <div className="flex justify-between text-xs text-slate-400 mb-1">
+                  <span>Vs. Mes Anterior ({stats?.ventasMesAnterior ? formatCurrency(stats.ventasMesAnterior) : 'C$0.00'})</span>
+                  <span>{stats?.ventasMesAnterior ? Math.round((stats.ventasMes / stats.ventasMesAnterior) * 100) : 0}%</span>
+                </div>
+                <div className="h-1.5 w-full rounded-full bg-white/10">
+                  <div 
+                    className="h-1.5 rounded-full bg-gradient-to-r from-indigo-400 to-violet-400 transition-all duration-1000" 
+                    style={{ width: `${Math.min(((stats?.ventasMes || 0) / (stats?.ventasMesAnterior || 1)) * 100, 100)}%` }}
+                  />
+                </div>
               </div>
             </div>
           </div>
