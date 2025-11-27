@@ -490,7 +490,7 @@ export default function POS() {
 
       {!isDesktop && (
         <>
-          <div className="fixed inset-x-0 bottom-4 z-50 px-4 lg:hidden">
+          <div className="fixed inset-x-0 bottom-20 z-40 px-4 lg:hidden">
             <Button
               className="w-full shadow-xl bg-indigo-600 hover:bg-indigo-700 text-white h-14 rounded-xl transition-all active:scale-95"
               size="lg"

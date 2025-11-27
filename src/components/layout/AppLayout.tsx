@@ -1,5 +1,6 @@
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from './AppSidebar';
+import { MobileNav } from './MobileNav';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage } from '@/components/ui/breadcrumb';
 import { Separator } from '@/components/ui/separator';
 import { useLocation } from 'react-router-dom';
@@ -44,7 +45,7 @@ export function AppLayout({ children }: AppLayoutProps) {
     <SidebarProvider defaultOpen={isDesktop} key={isDesktop ? 'desktop' : 'mobile'}>
       <div className="flex min-h-screen w-full bg-slate-50">
         <AppSidebar />
-        <main className="flex min-h-screen flex-1 flex-col overflow-y-auto">
+        <main className="flex min-h-screen flex-1 flex-col overflow-y-auto pb-20 md:pb-0">
           {/* Enhanced Header */}
           <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/80 backdrop-blur-md">
             <div className="flex flex-wrap items-center gap-3 px-4 py-3 sm:flex-nowrap sm:gap-4 sm:px-6">
@@ -82,6 +83,7 @@ export function AppLayout({ children }: AppLayoutProps) {
             {children}
           </div>
         </main>
+        <MobileNav />
       </div>
     </SidebarProvider>
   );
