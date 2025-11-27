@@ -39,6 +39,7 @@ import { getApiErrorMessage } from '@/lib/errors';
 import type { Insumo, PurchaseRequest } from '@/types';
 import { useAuthStore } from '@/store/authStore';
 import { hasRole } from '@/lib/auth';
+import { PageHeading } from '@/components/PageHeading';
 
 export default function Inventory() {
   const { user } = useAuthStore();
@@ -237,18 +238,18 @@ export default function Inventory() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Inventario</h1>
-          <p className="text-muted-foreground">Gestión de insumos</p>
-        </div>
-        {isAdmin && (
-          <Button onClick={openNewInsumoDialog} className="w-full sm:w-auto">
-            <Plus className="mr-2 h-4 w-4" />
-            Nuevo insumo
-          </Button>
-        )}
-      </div>
+      <PageHeading
+        title="Inventario"
+        description="Administra insumos, costos y compras en un solo lugar."
+        actions={
+          isAdmin ? (
+            <Button onClick={openNewInsumoDialog} className="w-full sm:w-auto">
+              <Plus className="mr-2 h-4 w-4" />
+              Nuevo insumo
+            </Button>
+          ) : null
+        }
+      />
 
       <Card>
         <CardHeader>

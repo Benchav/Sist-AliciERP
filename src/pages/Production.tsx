@@ -46,6 +46,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { PageHeading } from '@/components/PageHeading';
 
 export default function Production() {
   const queryClient = useQueryClient();
@@ -503,16 +504,16 @@ export default function Production() {
   return (
     <TooltipProvider>
       <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Producción</h1>
-          <p className="text-muted-foreground">Gestión de recetas y producción</p>
-        </div>
-        <Button onClick={() => setProductionDialog(true)} className="w-full sm:w-auto">
-          <Plus className="mr-2 h-4 w-4" />
-          Nueva Producción
-        </Button>
-      </div>
+      <PageHeading
+        title="Producción"
+        description="Gestiona recetas, lotes y costos de manera centralizada."
+        actions={
+          <Button onClick={() => setProductionDialog(true)} className="w-full sm:w-auto">
+            <Plus className="mr-2 h-4 w-4" />
+            Nueva Producción
+          </Button>
+        }
+      />
 
       <Tabs defaultValue="recipes">
         <TabsList className="w-full flex-wrap justify-start gap-2 sm:w-auto sm:justify-center">

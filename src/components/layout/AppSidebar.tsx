@@ -7,6 +7,7 @@ import {
   Settings,
   LogOut,
   ChevronRight,
+    Sparkles,
   type LucideIcon,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
@@ -102,9 +103,14 @@ export function AppSidebar() {
         {/* Header */}
         <div className="border-b p-6">
           {isExpanded ? (
-            <div>
-              <h2 className="text-xl font-bold text-foreground">SIST-ALICI</h2>
-              <p className="text-xs text-muted-foreground">ERP Panadería</p>
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <Sparkles className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="text-xl font-extrabold tracking-tight text-foreground">SIST-ALICI</h2>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">ERP Panadería</p>
+              </div>
             </div>
           ) : (
             <div className="flex items-center justify-center">
@@ -123,12 +129,16 @@ export function AppSidebar() {
                 
                 return (
                   <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild isActive={isActive}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActive}
+                      className="group relative overflow-hidden rounded-xl border border-transparent bg-transparent transition"
+                    >
                       <NavLink 
                         to={item.url} 
                         end={item.url === '/'}
-                        className="group relative flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:bg-accent"
-                        activeClassName="bg-accent text-accent-foreground font-medium"
+                        className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-primary/5 hover:text-foreground"
+                        activeClassName="bg-primary/10 text-foreground shadow-sm"
                       >
                         <item.icon className="h-5 w-5 shrink-0" />
                         {isExpanded && (

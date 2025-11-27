@@ -27,6 +27,7 @@ import type { Venta } from '@/types';
 import { useAuthStore } from '@/store/authStore';
 import { hasRole } from '@/lib/auth';
 import { getApiErrorMessage } from '@/lib/errors';
+import { PageHeading } from '@/components/PageHeading';
 
 export default function Sales() {
   const { user } = useAuthStore();
@@ -118,31 +119,31 @@ export default function Sales() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Ventas</h1>
-          <p className="text-muted-foreground">Historial y reportes de ventas</p>
-        </div>
-        {isAdmin && (
-          <Button
-            onClick={handleExportExcel}
-            disabled={exportExcelMutation.isPending}
-            className="w-full sm:w-auto"
-          >
-            {exportExcelMutation.isPending ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Generando...
-              </>
-            ) : (
-              <>
-                <FileDown className="mr-2 h-4 w-4" />
-                Exportar Excel
-              </>
-            )}
-          </Button>
-        )}
-      </div>
+      <PageHeading
+        title="Ventas"
+        description="Consulta históricos, descargas y anulaciones en segundos."
+        actions={
+          isAdmin ? (
+            <Button
+              onClick={handleExportExcel}
+              disabled={exportExcelMutation.isPending}
+              className="w-full sm:w-auto"
+            >
+              {exportExcelMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Generando...
+                </>
+              ) : (
+                <>
+                  <FileDown className="mr-2 h-4 w-4" />
+                  Exportar Excel
+                </>
+              )}
+            </Button>
+          ) : null
+        }
+      />
 
       <Card>
         <CardHeader>

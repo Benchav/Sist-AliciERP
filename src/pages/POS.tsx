@@ -22,6 +22,7 @@ import { getApiErrorMessage } from '@/lib/errors';
 import type { Producto, Config, CheckoutRequest } from '@/types';
 import { useAuthStore } from '@/store/authStore';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { PageHeading } from '@/components/PageHeading';
 
 interface CartItem {
   productId: string;
@@ -405,10 +406,10 @@ export default function POS() {
 
   return (
     <div className="space-y-6 pb-24 lg:pb-0">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Punto de Venta</h1>
-        <p className="text-muted-foreground">Procesar ventas</p>
-      </div>
+      <PageHeading
+        title="Punto de Venta"
+        description="Atiende más rápido con búsqueda inteligente y carrito en vivo."
+      />
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Products Grid */}

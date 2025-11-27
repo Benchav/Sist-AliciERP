@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import type { Config } from '@/types';
 import { getApiErrorMessage } from '@/lib/errors';
+import { PageHeading } from '@/components/PageHeading';
 
 export default function Settings() {
   const queryClient = useQueryClient();
@@ -46,10 +47,7 @@ export default function Settings() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Configuración</h1>
-        <p className="text-muted-foreground">Ajustes del sistema</p>
-      </div>
+      <PageHeading title="Configuración" description="Actualiza parámetros clave como la tasa de cambio." />
 
       <Card>
         <CardHeader>
