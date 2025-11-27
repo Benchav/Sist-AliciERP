@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Loader2, User, Lock, ArrowRight, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { Loader2, User, Lock, ArrowRight, CheckCircle2, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import type { AuthResponse } from '@/types';
 import { useMutation } from '@tanstack/react-query';
 import { getApiErrorMessage } from '@/lib/errors';
@@ -16,6 +16,7 @@ import { getApiErrorMessage } from '@/lib/errors';
 export default function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
   const { setAuth, user } = useAuthStore();
 
@@ -63,7 +64,7 @@ export default function Login() {
 
         <div className="relative z-10 overflow-hidden rounded-3xl border border-white/60 bg-white/80 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.1)] backdrop-blur-xl">
           <div className="px-8 pb-8 pt-16 text-center">
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">SIST-ALICI ERP</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">Repostería Alicia</h1>
             <p className="mt-2 text-sm text-slate-500">
               Gestión inteligente para tu panadería
             </p>
@@ -100,14 +101,25 @@ export default function Login() {
                   </div>
                   <Input
                     id="password"
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     disabled={loginMutation.isPending}
-                    className="h-12 rounded-xl border-slate-200 bg-slate-50/50 pl-10 transition-all hover:bg-slate-50 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10"
+                    className="h-12 rounded-xl border-slate-200 bg-slate-50/50 pl-10 pr-10 transition-all hover:bg-slate-50 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-500 transition-colors focus:outline-none"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-5 w-5" />
+                    ) : (
+                      <Eye className="h-5 w-5" />
+                    )}
+                  </button>
                 </div>
               </div>
 
