@@ -7,7 +7,6 @@ import {
   Settings,
   LogOut,
   ChevronRight,
-    Sparkles,
   type LucideIcon,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
@@ -104,9 +103,7 @@ export function AppSidebar() {
         <div className="border-b p-6">
           {isExpanded ? (
             <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                <Sparkles className="h-5 w-5" />
-              </div>
+              <img src="/favicon.svg" alt="Logo" className="h-12 w-12 rounded-2xl" />
               <div>
                 <h2 className="text-xl font-extrabold tracking-tight text-foreground">SIST-ALICI</h2>
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">ERP Panadería</p>
@@ -114,7 +111,7 @@ export function AppSidebar() {
             </div>
           ) : (
             <div className="flex items-center justify-center">
-              <Factory className="h-6 w-6 text-primary" />
+              <img src="/favicon.svg" alt="Logo" className="h-8 w-8 rounded-lg" />
             </div>
           )}
         </div>

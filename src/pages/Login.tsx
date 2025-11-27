@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Utensils, Loader2, User, Lock, ArrowRight, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { Loader2, User, Lock, ArrowRight, CheckCircle2, ShieldCheck } from 'lucide-react';
 import type { AuthResponse } from '@/types';
 import { useMutation } from '@tanstack/react-query';
 import { getApiErrorMessage } from '@/lib/errors';
@@ -57,8 +57,8 @@ export default function Login() {
 
       <div className="relative w-full max-w-[420px] animate-in fade-in zoom-in-95 slide-in-from-bottom-4 duration-700">
         {/* Floating Brand Icon - Fixed z-index and ring color */}
-        <div className="absolute -top-12 left-1/2 z-20 flex h-24 w-24 -translate-x-1/2 items-center justify-center rounded-[2rem] bg-gradient-to-br from-indigo-600 to-violet-600 shadow-2xl shadow-indigo-500/40 ring-8 ring-slate-50">
-          <Utensils className="h-10 w-10 text-white" />
+        <div className="absolute -top-12 left-1/2 z-20 flex h-24 w-24 -translate-x-1/2 items-center justify-center rounded-[2rem] bg-white shadow-2xl shadow-indigo-500/40 ring-8 ring-slate-50 overflow-hidden">
+          <img src="/favicon.svg" alt="Logo" className="h-full w-full object-cover" />
         </div>
 
         <div className="relative z-10 overflow-hidden rounded-3xl border border-white/60 bg-white/80 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.1)] backdrop-blur-xl">
