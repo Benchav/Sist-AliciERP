@@ -166,11 +166,16 @@ export default function Login() {
           </div>
         </div>
         
-     {/*   <div className="mt-8 flex justify-center gap-6 text-slate-400">
-          <a href="#" className="text-xs hover:text-slate-600 transition-colors">Términos</a>
-          <a href="#" className="text-xs hover:text-slate-600 transition-colors">Privacidad</a>
-          <a href="#" className="text-xs hover:text-slate-600 transition-colors">Ayuda</a>
-        </div> */}
+        <div className="mt-8 flex flex-col items-center justify-center gap-4 text-slate-400">
+          <a 
+            href="https://joshuachavl.vercel.app" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-xs hover:text-indigo-600 transition-colors"
+          >
+            Realizado por Joshua Chávez
+          </a>
+        </div>
       </div>
     </div>
   );

@@ -171,6 +171,16 @@ export function AppSidebar() {
               <LogOut className="h-4 w-4" />
               Cerrar Sesión
             </Button>
+            <div className="pt-2 text-center">
+              <a 
+                href="https://joshuachavl.vercel.app" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-[10px] text-muted-foreground hover:text-primary transition-colors"
+              >
+                Realizado por Joshua Chávez
+              </a>
+            </div>
           </div>
         ) : (
           <Button
