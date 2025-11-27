@@ -518,8 +518,8 @@ export default function POS() {
                   Carrito de compra
                 </SheetTitle>
               </SheetHeader>
-              <div className="flex-1 overflow-hidden p-6">
-                {renderCartContent('h-full overflow-y-auto pr-1')}
+              <div className="flex-1 overflow-hidden p-6 flex flex-col">
+                {renderCartContent('flex-1 overflow-y-auto min-h-0')}
               </div>
             </SheetContent>
           </Sheet>
