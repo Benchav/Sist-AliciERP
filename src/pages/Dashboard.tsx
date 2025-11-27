@@ -224,7 +224,7 @@ export default function Dashboard() {
                         </td>
                         <td className="px-6 py-4 text-right">
                           <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                            venta.estado === 'COMPLETADA' 
+                            venta.estado === 'COMPLETA' 
                               ? 'bg-emerald-50 text-emerald-700' 
                               : 'bg-red-50 text-red-700'
                           }`}>
