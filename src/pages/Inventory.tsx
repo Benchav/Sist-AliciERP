@@ -32,7 +32,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Plus, PenSquare, Trash2 } from 'lucide-react';
+import { Plus, PenSquare, Trash2, Package, ShoppingCart } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
@@ -243,7 +243,10 @@ export default function Inventory() {
         description="Administra insumos, costos y compras en un solo lugar."
         actions={
           isAdmin ? (
-            <Button onClick={openNewInsumoDialog} className="w-full sm:w-auto">
+            <Button 
+              onClick={openNewInsumoDialog} 
+              className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm shadow-indigo-200"
+            >
               <Plus className="mr-2 h-4 w-4" />
               Nuevo insumo
             </Button>
@@ -251,77 +254,80 @@ export default function Inventory() {
         }
       />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Insumos</CardTitle>
+      <Card className="border-slate-200 shadow-sm overflow-hidden rounded-xl">
+        <CardHeader className="border-b border-slate-100 bg-white px-6 py-4">
+          <CardTitle className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+            <Package className="h-5 w-5 text-indigo-600" />
+            Listado de Insumos
+          </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           <div className="hidden md:block">
-            <div className="overflow-x-auto rounded-lg border bg-card">
+            <div className="overflow-x-auto">
               <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nombre</TableHead>
-                    <TableHead>Unidad</TableHead>
-                    <TableHead>Stock</TableHead>
-                    <TableHead>Costo Promedio</TableHead>
-                    <TableHead>Estado</TableHead>
-                    {isAdmin && <TableHead>Acciones</TableHead>}
+                <TableHeader className="bg-slate-50/50">
+                  <TableRow className="hover:bg-transparent border-b border-slate-100">
+                    <TableHead className="h-10 text-xs font-medium uppercase tracking-wider text-slate-500 pl-6">Nombre</TableHead>
+                    <TableHead className="h-10 text-xs font-medium uppercase tracking-wider text-slate-500">Unidad</TableHead>
+                    <TableHead className="h-10 text-xs font-medium uppercase tracking-wider text-slate-500">Stock</TableHead>
+                    <TableHead className="h-10 text-xs font-medium uppercase tracking-wider text-slate-500">Costo Promedio</TableHead>
+                    <TableHead className="h-10 text-xs font-medium uppercase tracking-wider text-slate-500">Estado</TableHead>
+                    {isAdmin && <TableHead className="h-10 text-xs font-medium uppercase tracking-wider text-slate-500 text-right pr-6">Acciones</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center">
-                        Cargando...
+                      <TableCell colSpan={6} className="text-center py-8 text-slate-500">
+                        Cargando insumos...
                       </TableCell>
                     </TableRow>
                   ) : insumos?.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center">
+                      <TableCell colSpan={6} className="text-center py-8 text-slate-500">
                         No hay insumos registrados
                       </TableCell>
                     </TableRow>
                   ) : (
                     insumos?.map((insumo) => (
-                      <TableRow key={insumo.id}>
-                        <TableCell className="font-medium">{insumo.nombre}</TableCell>
-                        <TableCell>{insumo.unidad}</TableCell>
-                        <TableCell>{insumo.stock.toFixed(2)}</TableCell>
-                        <TableCell>{formatCurrency(insumo.costoPromedio)}</TableCell>
+                      <TableRow key={insumo.id} className="hover:bg-slate-50/50 border-b border-slate-50 transition-colors">
+                        <TableCell className="font-medium text-slate-900 pl-6">{insumo.nombre}</TableCell>
+                        <TableCell className="text-slate-500">{insumo.unidad}</TableCell>
+                        <TableCell className="font-medium text-slate-700">{insumo.stock.toFixed(2)}</TableCell>
+                        <TableCell className="text-slate-500">{formatCurrency(insumo.costoPromedio)}</TableCell>
                         <TableCell>
                           {insumo.stock < 10 ? (
-                            <Badge variant="destructive">Stock Bajo</Badge>
+                            <Badge variant="outline" className="bg-red-50 text-red-700 border-red-100">Stock Bajo</Badge>
                           ) : (
-                            <Badge variant="default">Disponible</Badge>
+                            <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-100">Disponible</Badge>
                           )}
                         </TableCell>
                         {isAdmin && (
-                          <TableCell>
-                            <div className="flex flex-wrap gap-2">
+                          <TableCell className="text-right pr-6">
+                            <div className="flex justify-end gap-2">
                               <Button
                                 size="sm"
-                                variant="outline"
+                                variant="ghost"
                                 onClick={() => openEditInsumoDialog(insumo)}
+                                className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50"
                               >
-                                <PenSquare className="mr-2 h-4 w-4" />
-                                Editar
+                                <PenSquare className="h-4 w-4" />
                               </Button>
                               <Button
                                 size="sm"
-                                variant="outline"
+                                variant="ghost"
                                 onClick={() => openPurchaseDialog(insumo)}
+                                className="h-8 w-8 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
                               >
-                                <Plus className="mr-2 h-4 w-4" />
-                                Compra
+                                <ShoppingCart className="h-4 w-4" />
                               </Button>
                               <Button
                                 size="sm"
-                                variant="destructive"
+                                variant="ghost"
                                 onClick={() => openDeleteDialog(insumo)}
+                                className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50"
                               >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Eliminar
+                                <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
                           </TableCell>
@@ -334,47 +340,49 @@ export default function Inventory() {
             </div>
           </div>
 
-          <div className="space-y-3 md:hidden">
+          <div className="space-y-3 p-4 md:hidden">
             {isLoading ? (
-              <p className="text-center text-sm text-muted-foreground">Cargando...</p>
+              <p className="text-center text-sm text-slate-500">Cargando...</p>
             ) : insumos?.length === 0 ? (
-              <p className="text-center text-sm text-muted-foreground">No hay insumos registrados</p>
+              <p className="text-center text-sm text-slate-500">No hay insumos registrados</p>
             ) : (
               insumos?.map((insumo) => (
-                <div key={insumo.id} className="space-y-2 rounded-lg border p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-base font-semibold">{insumo.nombre}</p>
-                      <p className="text-xs text-muted-foreground">Unidad: {insumo.unidad}</p>
+                <Card key={insumo.id} className="overflow-hidden border border-slate-200 shadow-sm">
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <div>
+                        <p className="text-base font-semibold text-slate-900">{insumo.nombre}</p>
+                        <p className="text-xs text-slate-500">Unidad: {insumo.unidad}</p>
+                      </div>
+                      <Badge variant="outline" className={insumo.stock < 10 ? "bg-red-50 text-red-700 border-red-100" : "bg-emerald-50 text-emerald-700 border-emerald-100"}>
+                        {insumo.stock < 10 ? 'Bajo' : 'Disponible'}
+                      </Badge>
                     </div>
-                    <Badge variant={insumo.stock < 10 ? 'destructive' : 'default'}>
-                      {insumo.stock < 10 ? 'Bajo' : 'Disponible'}
-                    </Badge>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div>
-                      <p className="text-muted-foreground">Stock</p>
-                      <p className="font-medium">{insumo.stock.toFixed(2)}</p>
+                    <div className="grid grid-cols-2 gap-4 text-sm mb-4">
+                      <div className="bg-slate-50 p-2 rounded border border-slate-100">
+                        <p className="text-xs text-slate-500 mb-1">Stock Actual</p>
+                        <p className="font-semibold text-slate-900">{insumo.stock.toFixed(2)}</p>
+                      </div>
+                      <div className="bg-slate-50 p-2 rounded border border-slate-100">
+                        <p className="text-xs text-slate-500 mb-1">Costo Prom.</p>
+                        <p className="font-semibold text-slate-900">{formatCurrency(insumo.costoPromedio)}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-muted-foreground">Costo Prom.</p>
-                      <p className="font-medium">{formatCurrency(insumo.costoPromedio)}</p>
-                    </div>
-                  </div>
-                  {isAdmin && (
-                    <div className="flex flex-wrap gap-2 pt-2">
-                      <Button size="sm" variant="outline" onClick={() => openEditInsumoDialog(insumo)}>
-                        <PenSquare className="mr-2 h-4 w-4" /> Editar
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => openPurchaseDialog(insumo)}>
-                        <Plus className="mr-2 h-4 w-4" /> Compra
-                      </Button>
-                      <Button size="sm" variant="destructive" onClick={() => openDeleteDialog(insumo)}>
-                        <Trash2 className="mr-2 h-4 w-4" /> Eliminar
-                      </Button>
-                    </div>
-                  )}
-                </div>
+                    {isAdmin && (
+                      <div className="flex gap-2 pt-2 border-t border-slate-100">
+                        <Button size="sm" variant="outline" className="flex-1" onClick={() => openEditInsumoDialog(insumo)}>
+                          Editar
+                        </Button>
+                        <Button size="sm" variant="outline" className="flex-1 text-emerald-600 border-emerald-200 hover:bg-emerald-50" onClick={() => openPurchaseDialog(insumo)}>
+                          Compra
+                        </Button>
+                        <Button size="sm" variant="outline" className="flex-1 text-red-600 border-red-200 hover:bg-red-50" onClick={() => openDeleteDialog(insumo)}>
+                          Eliminar
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               ))
             )}
           </div>

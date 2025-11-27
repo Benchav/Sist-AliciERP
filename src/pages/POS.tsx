@@ -15,7 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Search, ShoppingCart, Trash2, Plus, Minus } from 'lucide-react';
+import { Search, ShoppingCart, Trash2, Plus, Minus, CreditCard } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency, amountToCents, calculateChange, calculateTotalPayment } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
@@ -328,29 +328,35 @@ export default function POS() {
 
   const renderCartContent = (scrollAreaClasses = 'max-h-96 overflow-y-auto') => {
     if (cart.length === 0) {
-      return <p className="text-center text-muted-foreground">Carrito vacío</p>;
+      return (
+        <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+          <ShoppingCart className="h-12 w-12 mb-3 opacity-20" />
+          <p className="text-sm font-medium">El carrito está vacío</p>
+          <p className="text-xs">Agregue productos para comenzar</p>
+        </div>
+      );
     }
 
     return (
       <>
-        <div className={`space-y-3 ${scrollAreaClasses}`}>
+        <div className={`space-y-3 ${scrollAreaClasses} pr-2`}>
           {cart.map((item) => {
             const product = productMap.get(item.productId);
             if (!product) return null;
             return (
-              <div key={item.productId} className="flex items-center gap-2 rounded-lg border p-3">
-                <div className="flex-1">
-                  <p className="font-medium">{product.nombre}</p>
-                  <p className="text-sm text-muted-foreground">{formatCurrency(product.precioVenta)}</p>
+              <div key={item.productId} className="flex items-center gap-3 rounded-lg border border-slate-100 bg-slate-50/50 p-3 transition-colors hover:bg-slate-50">
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-slate-900 truncate">{product.nombre}</p>
+                  <p className="text-sm text-slate-500">{formatCurrency(product.precioVenta)}</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 bg-white rounded-md border border-slate-200 shadow-sm p-0.5">
                   <Button
                     size="icon"
-                    variant="outline"
-                    className="h-8 w-8"
+                    variant="ghost"
+                    className="h-7 w-7 text-slate-500 hover:text-slate-900 hover:bg-slate-100"
                     onClick={() => updateQuantity(item.productId, -1)}
                   >
-                    <Minus className="h-4 w-4" />
+                    <Minus className="h-3 w-3" />
                   </Button>
                   <Input
                     type="text"
@@ -364,42 +370,46 @@ export default function POS() {
                       }
                     }}
                     onBlur={() => commitQuantityInput(item.productId)}
-                    className="h-8 w-16 text-center"
+                    className="h-7 w-10 border-0 text-center p-0 focus-visible:ring-0 font-medium text-slate-900"
                   />
                   <Button
                     size="icon"
-                    variant="outline"
-                    className="h-8 w-8"
+                    variant="ghost"
+                    className="h-7 w-7 text-slate-500 hover:text-slate-900 hover:bg-slate-100"
                     onClick={() => updateQuantity(item.productId, 1)}
                   >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-8 w-8"
-                    onClick={() => removeFromCart(item.productId)}
-                  >
-                    <Trash2 className="h-4 w-4" />
+                    <Plus className="h-3 w-3" />
                   </Button>
                 </div>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                  onClick={() => removeFromCart(item.productId)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </div>
             );
           })}
         </div>
 
-        <Separator />
+        <Separator className="my-4" />
 
-        <div className="space-y-2">
-          <div className="flex justify-between text-lg font-bold">
-            <span>Total:</span>
-            <span className="text-primary">{formatCurrency(totalNIO)}</span>
+        <div className="space-y-4">
+          <div className="flex justify-between items-end">
+            <span className="text-sm font-medium text-slate-500">Total a pagar</span>
+            <span className="text-2xl font-bold text-slate-900">{formatCurrency(totalNIO)}</span>
           </div>
+          
+          <Button 
+            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm shadow-indigo-200 h-11 text-base" 
+            onClick={handleCheckoutButton} 
+            disabled={checkoutMutation.isPending}
+          >
+            {checkoutMutation.isPending ? 'Procesando...' : 'Procesar Venta'}
+          </Button>
         </div>
-
-        <Button className="w-full" size="lg" onClick={handleCheckoutButton} disabled={checkoutMutation.isPending}>
-          {checkoutMutation.isPending ? 'Procesando...' : 'Procesar Venta'}
-        </Button>
       </>
     );
   };
@@ -411,14 +421,14 @@ export default function POS() {
         description="Atiende más rápido con búsqueda inteligente y carrito en vivo."
       />
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 lg:grid-cols-3 items-start">
         {/* Products Grid */}
         <div className="order-2 space-y-4 lg:order-1 lg:col-span-2">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <Input
-              placeholder="Buscar productos..."
-              className="pl-10"
+              placeholder="Buscar productos por nombre o categoría..."
+              className="pl-10 h-11 bg-white border-slate-200 shadow-sm focus-visible:ring-indigo-500"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -428,23 +438,33 @@ export default function POS() {
             {filteredProducts.map((producto) => (
               <Card
                 key={producto.id}
-                className="cursor-pointer transition-shadow hover:shadow-md"
+                className="cursor-pointer transition-all hover:shadow-md hover:border-indigo-200 group border-slate-200 shadow-sm overflow-hidden"
                 onClick={() => addToCart(producto)}
               >
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">{producto.nombre}</CardTitle>
-                  {producto.categoria && (
-                    <Badge variant="outline" className="w-fit">
-                      {producto.categoria}
-                    </Badge>
-                  )}
+                <CardHeader className="pb-3 pt-4 px-4">
+                  <div className="flex justify-between items-start gap-2">
+                    <CardTitle className="text-base font-semibold text-slate-900 line-clamp-2 leading-tight group-hover:text-indigo-600 transition-colors">
+                      {producto.nombre}
+                    </CardTitle>
+                    {producto.categoria && (
+                      <Badge variant="secondary" className="shrink-0 bg-slate-100 text-slate-600 hover:bg-slate-200 border-slate-200">
+                        {producto.categoria}
+                      </Badge>
+                    )}
+                  </div>
                 </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xl font-bold text-primary">
+                <CardContent className="px-4 pb-4">
+                  <div className="flex items-end justify-between">
+                    <span className="text-lg font-bold text-slate-900">
                       {formatCurrency(producto.precioVenta)}
                     </span>
-                    <Badge variant={producto.stockDisponible > 0 ? 'default' : 'destructive'}>
+                    <Badge 
+                      variant="outline" 
+                      className={producto.stockDisponible > 0 
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-100" 
+                        : "bg-red-50 text-red-700 border-red-100"
+                      }
+                    >
                       Stock: {producto.stockDisponible}
                     </Badge>
                   </div>
@@ -456,14 +476,14 @@ export default function POS() {
 
         {/* Cart */}
         <div className="order-1 hidden lg:order-2 lg:block lg:col-span-1">
-          <Card className="md:sticky md:top-20">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ShoppingCart className="h-5 w-5" />
-                Carrito
+          <Card className="md:sticky md:top-6 border-slate-200 shadow-sm overflow-hidden">
+            <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-4">
+              <CardTitle className="flex items-center gap-2 text-lg font-semibold text-slate-900">
+                <ShoppingCart className="h-5 w-5 text-indigo-600" />
+                Carrito de compra
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">{renderCartContent()}</CardContent>
+            <CardContent className="p-4 space-y-4">{renderCartContent()}</CardContent>
           </Card>
         </div>
       </div>
@@ -472,26 +492,32 @@ export default function POS() {
         <>
           <div className="pointer-events-none fixed inset-x-0 bottom-4 z-30 px-4 lg:hidden">
             <Button
-              className="pointer-events-auto w-full shadow-lg"
+              className="pointer-events-auto w-full shadow-xl bg-indigo-600 hover:bg-indigo-700 text-white h-14 rounded-xl"
               size="lg"
               onClick={() => setMobileCartOpen(true)}
               disabled={cart.length === 0}
             >
-              <div className="flex w-full items-center justify-between">
-                <span>Carrito ({cart.length})</span>
-                <span>{formatCurrency(totalNIO)}</span>
+              <div className="flex w-full items-center justify-between px-2">
+                <div className="flex items-center gap-2">
+                  <ShoppingCart className="h-5 w-5" />
+                  <span className="font-semibold">Ver Carrito ({cart.length})</span>
+                </div>
+                <span className="font-bold text-lg">{formatCurrency(totalNIO)}</span>
               </div>
             </Button>
           </div>
 
           <Sheet open={mobileCartOpen} onOpenChange={setMobileCartOpen}>
-            <SheetContent side="bottom" className="h-[80vh] rounded-t-3xl border-t">
-              <SheetHeader className="text-left">
-                <SheetTitle className="flex items-center gap-2 text-base font-semibold">
-                  <ShoppingCart className="h-4 w-4" /> Carrito
+            <SheetContent side="bottom" className="h-[85vh] rounded-t-[2rem] border-t-0 shadow-2xl p-0 flex flex-col">
+              <SheetHeader className="px-6 pt-6 pb-4 border-b border-slate-100 text-left">
+                <SheetTitle className="flex items-center gap-2 text-lg font-semibold text-slate-900">
+                  <ShoppingCart className="h-5 w-5 text-indigo-600" /> 
+                  Carrito de compra
                 </SheetTitle>
               </SheetHeader>
-              <div className="mt-4 space-y-4">{renderCartContent('max-h-[55vh] overflow-y-auto pr-1')}</div>
+              <div className="flex-1 overflow-hidden p-6">
+                {renderCartContent('h-full overflow-y-auto pr-1')}
+              </div>
             </SheetContent>
           </Sheet>
         </>
@@ -499,53 +525,79 @@ export default function POS() {
 
       {/* Checkout Dialog */}
       <Dialog open={checkoutDialog} onOpenChange={setCheckoutDialog}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Procesar Pago</DialogTitle>
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <CreditCard className="h-5 w-5 text-indigo-600" />
+              Procesar Pago
+            </DialogTitle>
             <DialogDescription>
-              Total a pagar: {formatCurrency(totalNIO)}
+              Ingrese los montos recibidos para completar la venta.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="payment-nio">Pago en Córdobas (C$)</Label>
-              <Input
-                id="payment-nio"
-                type="number"
-                step="0.01"
-                placeholder="0.00"
-                value={paymentNIO}
-                onChange={(e) => setPaymentNIO(e.target.value)}
-              />
+          
+          <div className="py-4 space-y-6">
+            <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 flex justify-between items-center">
+              <span className="text-sm font-medium text-slate-500">Total a cobrar</span>
+              <span className="text-2xl font-bold text-slate-900">{formatCurrency(totalNIO)}</span>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="payment-usd">Pago en Dólares ($)</Label>
-              <Input
-                id="payment-usd"
-                type="number"
-                step="0.01"
-                placeholder="0.00"
-                value={paymentUSD}
-                onChange={(e) => setPaymentUSD(e.target.value)}
-              />
-              {config && (
-                <p className="text-xs text-muted-foreground">
-                  Tasa de cambio: C${config.tasaCambio.toFixed(2)}
-                </p>
-              )}
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="payment-nio" className="text-slate-700">Pago en Córdobas (C$)</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium">C$</span>
+                  <Input
+                    id="payment-nio"
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={paymentNIO}
+                    onChange={(e) => setPaymentNIO(e.target.value)}
+                    className="pl-9 text-lg font-medium"
+                  />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="payment-usd" className="text-slate-700">Pago en Dólares ($)</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium">$</span>
+                  <Input
+                    id="payment-usd"
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={paymentUSD}
+                    onChange={(e) => setPaymentUSD(e.target.value)}
+                    className="pl-7 text-lg font-medium"
+                  />
+                </div>
+                {config && (
+                  <p className="text-xs text-slate-500 text-right">
+                    Tasa de cambio: <span className="font-medium text-slate-700">C${config.tasaCambio.toFixed(2)}</span>
+                  </p>
+                )}
+              </div>
             </div>
+
             {change > 0 && (
-              <div className="rounded-lg bg-success/10 p-3">
-                <p className="text-sm font-medium">Cambio a devolver:</p>
-                <p className="text-xl font-bold text-success">{formatCurrency(change)}</p>
+              <div className="rounded-lg bg-emerald-50 border border-emerald-100 p-4 flex justify-between items-center animate-in fade-in slide-in-from-bottom-2">
+                <span className="text-sm font-medium text-emerald-800">Cambio a devolver</span>
+                <span className="text-xl font-bold text-emerald-700">{formatCurrency(change)}</span>
               </div>
             )}
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCheckoutDialog(false)}>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setCheckoutDialog(false)} className="border-slate-200">
               Cancelar
             </Button>
-            <Button onClick={handleCheckout} disabled={checkoutMutation.isPending}>
+            <Button 
+              onClick={handleCheckout} 
+              disabled={checkoutMutation.isPending}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm shadow-indigo-200"
+            >
               {checkoutMutation.isPending ? 'Procesando...' : 'Confirmar Pago'}
             </Button>
           </DialogFooter>

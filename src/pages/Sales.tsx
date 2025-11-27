@@ -18,7 +18,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { CalendarIcon, FileDown, FileText, Loader2, Trash2 } from 'lucide-react';
+import { CalendarIcon, FileDown, FileText, Loader2, Trash2, Filter } from 'lucide-react';
 import { endOfDay, endOfMonth, format, isSameDay, isWithinInterval, startOfDay, startOfMonth, subDays, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -205,7 +205,7 @@ export default function Sales() {
             <Button
               onClick={handleExportExcel}
               disabled={exportExcelMutation.isPending}
-              className="w-full sm:w-auto"
+              className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm shadow-indigo-200"
             >
               {exportExcelMutation.isPending ? (
                 <>
@@ -223,196 +223,208 @@ export default function Sales() {
         }
       />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Filtros</CardTitle>
+      <Card className="border-slate-200 shadow-sm">
+        <CardHeader className="border-b border-slate-100 bg-white px-6 py-4">
+          <CardTitle className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+            <Filter className="h-5 w-5 text-indigo-600" />
+            Filtros de Búsqueda
+          </CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                size="lg"
-                className={cn(
-                  'w-full justify-between text-left font-normal sm:w-auto',
-                  !dateRange?.from && 'text-muted-foreground',
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {rangeLabel}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <Calendar
-                  mode="range"
-                  selected={dateRange}
-                  onSelect={setDateRange}
-                  numberOfMonths={1}
-                  initialFocus
-                  defaultMonth={dateRange?.from ?? new Date()}
-                  className="pointer-events-auto"
-                />
-                <div className="min-w-[180px] border-t p-4 sm:border-l sm:border-t-0">
-                  <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Preajustes rápidos
-                  </p>
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-1">
-                    {quickPresets.map((preset) => (
-                      <Button
-                        key={preset.label}
-                        variant="ghost"
-                        size="sm"
-                        className="justify-start"
-                        onClick={() => handlePresetClick(preset.getRange)}
-                      >
-                        {preset.label}
-                      </Button>
-                    ))}
+        <CardContent className="p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className={cn(
+                    'w-full justify-between text-left font-normal sm:w-auto border-slate-200 hover:bg-slate-50 hover:text-slate-900',
+                    !dateRange?.from && 'text-slate-500',
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4 text-slate-400" />
+                  {rangeLabel}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <Calendar
+                    mode="range"
+                    selected={dateRange}
+                    onSelect={setDateRange}
+                    numberOfMonths={1}
+                    initialFocus
+                    defaultMonth={dateRange?.from ?? new Date()}
+                    className="pointer-events-auto"
+                  />
+                  <div className="min-w-[180px] border-t p-4 sm:border-l sm:border-t-0 bg-slate-50/50">
+                    <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Preajustes rápidos
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-1">
+                      {quickPresets.map((preset) => (
+                        <Button
+                          key={preset.label}
+                          variant="ghost"
+                          size="sm"
+                          className="justify-start text-slate-600 hover:text-indigo-600 hover:bg-indigo-50"
+                          onClick={() => handlePresetClick(preset.getRange)}
+                        >
+                          {preset.label}
+                        </Button>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </PopoverContent>
-          </Popover>
+              </PopoverContent>
+            </Popover>
+          </div>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Historial de Ventas</CardTitle>
+      <Card className="border-slate-200 shadow-sm overflow-hidden rounded-xl">
+        <CardHeader className="border-b border-slate-100 bg-white px-6 py-4">
+          <CardTitle className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+            <FileText className="h-5 w-5 text-indigo-600" />
+            Historial de Ventas
+          </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           <div className="hidden md:block">
-            <div className="overflow-x-auto rounded-lg border bg-card">
+            <div className="overflow-x-auto">
               <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Fecha</TableHead>
-                    <TableHead>Total</TableHead>
-                    <TableHead>Items</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead>Acciones</TableHead>
+                <TableHeader className="bg-slate-50/50">
+                  <TableRow className="hover:bg-transparent border-b border-slate-100">
+                    <TableHead className="h-10 text-xs font-medium uppercase tracking-wider text-slate-500 pl-6">Fecha</TableHead>
+                    <TableHead className="h-10 text-xs font-medium uppercase tracking-wider text-slate-500">Total</TableHead>
+                    <TableHead className="h-10 text-xs font-medium uppercase tracking-wider text-slate-500">Items</TableHead>
+                    <TableHead className="h-10 text-xs font-medium uppercase tracking-wider text-slate-500">Estado</TableHead>
+                    <TableHead className="h-10 text-xs font-medium uppercase tracking-wider text-slate-500 text-right pr-6">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center">
-                      Cargando...
-                    </TableCell>
-                  </TableRow>
-                ) : filteredSales.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center">
-                      No hay ventas registradas
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredSales.map((venta) => (
-                    <TableRow key={venta.id}>
-                      <TableCell>{format(new Date(venta.fecha), 'dd/MM/yyyy HH:mm')}</TableCell>
-                      <TableCell className="font-medium">
-                        {formatCurrency(venta.totalNIO)}
-                      </TableCell>
-                      <TableCell>{venta.items.length} items</TableCell>
-                      <TableCell>
-                        <Badge variant={venta.estado === 'ANULADA' ? 'destructive' : 'default'}>
-                          {venta.estado}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => pdfMutation.mutate(venta.id)}
-                            disabled={pdfMutation.isPending && pdfMutation.variables === venta.id}
-                          >
-                            {pdfMutation.isPending && pdfMutation.variables === venta.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <FileText className="h-4 w-4" />
-                            )}
-                          </Button>
-                          {isAdmin && venta.estado !== 'ANULADA' && (
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => deleteMutation.mutate(venta.id)}
-                              disabled={deleteMutation.isPending && deleteMutation.variables === venta.id}
-                            >
-                              {deleteMutation.isPending && deleteMutation.variables === venta.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Trash2 className="h-4 w-4" />
-                              )}
-                            </Button>
-                          )}
-                        </div>
+                <TableBody>
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8 text-slate-500">
+                        Cargando ventas...
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  ) : filteredSales.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8 text-slate-500">
+                        No hay ventas registradas
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredSales.map((venta) => (
+                      <TableRow key={venta.id} className="hover:bg-slate-50/50 border-b border-slate-50 transition-colors">
+                        <TableCell className="text-slate-700 pl-6">{format(new Date(venta.fecha), 'dd/MM/yyyy HH:mm')}</TableCell>
+                        <TableCell className="font-medium text-slate-900">
+                          {formatCurrency(venta.totalNIO)}
+                        </TableCell>
+                        <TableCell className="text-slate-500">{venta.items.length} items</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={venta.estado === 'ANULADA' ? "bg-red-50 text-red-700 border-red-100" : "bg-emerald-50 text-emerald-700 border-emerald-100"}>
+                            {venta.estado}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right pr-6">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => pdfMutation.mutate(venta.id)}
+                              disabled={pdfMutation.isPending && pdfMutation.variables === venta.id}
+                              className="h-8 w-8 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
+                            >
+                              {pdfMutation.isPending && pdfMutation.variables === venta.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <FileText className="h-4 w-4" />
+                              )}
+                            </Button>
+                            {isAdmin && venta.estado !== 'ANULADA' && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => deleteMutation.mutate(venta.id)}
+                                disabled={deleteMutation.isPending && deleteMutation.variables === venta.id}
+                                className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                              >
+                                {deleteMutation.isPending && deleteMutation.variables === venta.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4" />
+                                )}
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
             </div>
           </div>
 
-          <div className="space-y-3 md:hidden">
+          <div className="space-y-3 p-4 md:hidden">
             {isLoading ? (
-              <p className="text-center text-sm text-muted-foreground">Cargando...</p>
+              <p className="text-center text-sm text-slate-500">Cargando...</p>
             ) : filteredSales.length === 0 ? (
-              <p className="text-center text-sm text-muted-foreground">No hay ventas registradas</p>
+              <p className="text-center text-sm text-slate-500">No hay ventas registradas</p>
             ) : (
               filteredSales.map((venta) => (
-                <div key={venta.id} className="space-y-2 rounded-lg border p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-base font-semibold">
-                        {format(new Date(venta.fecha), 'dd/MM/yyyy HH:mm')}
-                      </p>
-                      <p className="text-xs text-muted-foreground">{venta.items.length} items</p>
+                <Card key={venta.id} className="overflow-hidden border border-slate-200 shadow-sm">
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <div>
+                        <p className="text-base font-semibold text-slate-900">
+                          {format(new Date(venta.fecha), 'dd/MM/yyyy HH:mm')}
+                        </p>
+                        <p className="text-xs text-slate-500">{venta.items.length} items</p>
+                      </div>
+                      <Badge variant="outline" className={venta.estado === 'ANULADA' ? "bg-red-50 text-red-700 border-red-100" : "bg-emerald-50 text-emerald-700 border-emerald-100"}>
+                        {venta.estado}
+                      </Badge>
                     </div>
-                    <Badge variant={venta.estado === 'ANULADA' ? 'destructive' : 'default'}>
-                      {venta.estado}
-                    </Badge>
-                  </div>
-                  <p className="text-lg font-bold text-primary">{formatCurrency(venta.totalNIO)}</p>
-                  <div className="flex flex-wrap gap-2 pt-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => pdfMutation.mutate(venta.id)}
-                      disabled={pdfMutation.isPending && pdfMutation.variables === venta.id}
-                      className="flex-1 sm:flex-none"
-                    >
-                      {pdfMutation.isPending && pdfMutation.variables === venta.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <>
-                          <FileText className="mr-2 h-4 w-4" /> Ver factura
-                        </>
-                      )}
-                    </Button>
-                    {isAdmin && venta.estado !== 'ANULADA' && (
+                    <p className="text-lg font-bold text-slate-900 mb-3">{formatCurrency(venta.totalNIO)}</p>
+                    <div className="flex gap-2 pt-2 border-t border-slate-100">
                       <Button
                         size="sm"
-                        variant="destructive"
-                        onClick={() => deleteMutation.mutate(venta.id)}
-                        disabled={deleteMutation.isPending && deleteMutation.variables === venta.id}
-                        className="flex-1 sm:flex-none"
+                        variant="outline"
+                        onClick={() => pdfMutation.mutate(venta.id)}
+                        disabled={pdfMutation.isPending && pdfMutation.variables === venta.id}
+                        className="flex-1 text-indigo-600 border-indigo-200 hover:bg-indigo-50"
                       >
-                        {deleteMutation.isPending && deleteMutation.variables === venta.id ? (
+                        {pdfMutation.isPending && pdfMutation.variables === venta.id ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
                           <>
-                            <Trash2 className="mr-2 h-4 w-4" /> Anular
+                            <FileText className="mr-2 h-4 w-4" /> Ver factura
                           </>
                         )}
                       </Button>
-                    )}
-                  </div>
-                </div>
+                      {isAdmin && venta.estado !== 'ANULADA' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => deleteMutation.mutate(venta.id)}
+                          disabled={deleteMutation.isPending && deleteMutation.variables === venta.id}
+                          className="flex-1 text-red-600 border-red-200 hover:bg-red-50"
+                        >
+                          {deleteMutation.isPending && deleteMutation.variables === venta.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <>
+                              <Trash2 className="mr-2 h-4 w-4" /> Anular
+                            </>
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
               ))
             )}
           </div>
