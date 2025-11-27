@@ -21,7 +21,7 @@ import { formatCurrency, amountToCents, calculateChange, calculateTotalPayment }
 import { getApiErrorMessage } from '@/lib/errors';
 import type { Producto, Config, CheckoutRequest } from '@/types';
 import { useAuthStore } from '@/store/authStore';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { PageHeading } from '@/components/PageHeading';
 
 interface CartItem {
@@ -517,6 +517,9 @@ export default function POS() {
                   <ShoppingCart className="h-5 w-5 text-indigo-600" /> 
                   Carrito de compra
                 </SheetTitle>
+                <SheetDescription className="sr-only">
+                  Revise los productos agregados al carrito antes de procesar la venta.
+                </SheetDescription>
               </SheetHeader>
               <div className="flex-1 overflow-hidden p-6 flex flex-col">
                 {renderCartContent('flex-1 overflow-y-auto min-h-0')}
