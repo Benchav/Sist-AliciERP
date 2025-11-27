@@ -61,7 +61,7 @@ export default function Settings() {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="exchange-rate">Tasa de Cambio (USD a NIO)</Label>
-            <div className="flex gap-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
               <Input
                 id="exchange-rate"
                 type="number"
@@ -69,9 +69,13 @@ export default function Settings() {
                 placeholder="0.00"
                 value={exchangeRate}
                 onChange={(e) => setExchangeRate(e.target.value)}
-                className="max-w-xs"
+                className="w-full sm:max-w-xs"
               />
-              <Button onClick={handleUpdate} disabled={updateMutation.isPending}>
+              <Button
+                onClick={handleUpdate}
+                disabled={updateMutation.isPending}
+                className="w-full sm:w-auto"
+              >
                 {updateMutation.isPending ? 'Actualizando...' : 'Actualizar'}
               </Button>
             </div>

@@ -237,13 +237,13 @@ export default function Inventory() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Inventario</h1>
           <p className="text-muted-foreground">Gestión de insumos</p>
         </div>
         {isAdmin && (
-          <Button onClick={openNewInsumoDialog}>
+          <Button onClick={openNewInsumoDialog} className="w-full sm:w-auto">
             <Plus className="mr-2 h-4 w-4" />
             Nuevo insumo
           </Button>
@@ -255,80 +255,127 @@ export default function Inventory() {
           <CardTitle>Insumos</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto rounded-lg border bg-card">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Unidad</TableHead>
-                  <TableHead>Stock</TableHead>
-                  <TableHead>Costo Promedio</TableHead>
-                  <TableHead>Estado</TableHead>
-                  {isAdmin && <TableHead>Acciones</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
+          <div className="hidden md:block">
+            <div className="overflow-x-auto rounded-lg border bg-card">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center">
-                      Cargando...
-                    </TableCell>
+                    <TableHead>Nombre</TableHead>
+                    <TableHead>Unidad</TableHead>
+                    <TableHead>Stock</TableHead>
+                    <TableHead>Costo Promedio</TableHead>
+                    <TableHead>Estado</TableHead>
+                    {isAdmin && <TableHead>Acciones</TableHead>}
                   </TableRow>
-                ) : insumos?.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center">
-                      No hay insumos registrados
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  insumos?.map((insumo) => (
-                    <TableRow key={insumo.id}>
-                      <TableCell className="font-medium">{insumo.nombre}</TableCell>
-                      <TableCell>{insumo.unidad}</TableCell>
-                      <TableCell>{insumo.stock.toFixed(2)}</TableCell>
-                      <TableCell>{formatCurrency(insumo.costoPromedio)}</TableCell>
-                      <TableCell>
-                        {insumo.stock < 10 ? (
-                          <Badge variant="destructive">Stock Bajo</Badge>
-                        ) : (
-                          <Badge variant="default">Disponible</Badge>
-                        )}
+                </TableHeader>
+                <TableBody>
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center">
+                        Cargando...
                       </TableCell>
-                      {isAdmin && (
-                        <TableCell>
-                          <div className="flex flex-wrap gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => openEditInsumoDialog(insumo)}
-                            >
-                              <PenSquare className="mr-2 h-4 w-4" />
-                              Editar
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => openPurchaseDialog(insumo)}
-                            >
-                              <Plus className="mr-2 h-4 w-4" />
-                              Compra
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => openDeleteDialog(insumo)}
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Eliminar
-                            </Button>
-                          </div>
-                        </TableCell>
-                      )}
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  ) : insumos?.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center">
+                        No hay insumos registrados
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    insumos?.map((insumo) => (
+                      <TableRow key={insumo.id}>
+                        <TableCell className="font-medium">{insumo.nombre}</TableCell>
+                        <TableCell>{insumo.unidad}</TableCell>
+                        <TableCell>{insumo.stock.toFixed(2)}</TableCell>
+                        <TableCell>{formatCurrency(insumo.costoPromedio)}</TableCell>
+                        <TableCell>
+                          {insumo.stock < 10 ? (
+                            <Badge variant="destructive">Stock Bajo</Badge>
+                          ) : (
+                            <Badge variant="default">Disponible</Badge>
+                          )}
+                        </TableCell>
+                        {isAdmin && (
+                          <TableCell>
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => openEditInsumoDialog(insumo)}
+                              >
+                                <PenSquare className="mr-2 h-4 w-4" />
+                                Editar
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => openPurchaseDialog(insumo)}
+                              >
+                                <Plus className="mr-2 h-4 w-4" />
+                                Compra
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => openDeleteDialog(insumo)}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Eliminar
+                              </Button>
+                            </div>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+
+          <div className="space-y-3 md:hidden">
+            {isLoading ? (
+              <p className="text-center text-sm text-muted-foreground">Cargando...</p>
+            ) : insumos?.length === 0 ? (
+              <p className="text-center text-sm text-muted-foreground">No hay insumos registrados</p>
+            ) : (
+              insumos?.map((insumo) => (
+                <div key={insumo.id} className="space-y-2 rounded-lg border p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-base font-semibold">{insumo.nombre}</p>
+                      <p className="text-xs text-muted-foreground">Unidad: {insumo.unidad}</p>
+                    </div>
+                    <Badge variant={insumo.stock < 10 ? 'destructive' : 'default'}>
+                      {insumo.stock < 10 ? 'Bajo' : 'Disponible'}
+                    </Badge>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <p className="text-muted-foreground">Stock</p>
+                      <p className="font-medium">{insumo.stock.toFixed(2)}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Costo Prom.</p>
+                      <p className="font-medium">{formatCurrency(insumo.costoPromedio)}</p>
+                    </div>
+                  </div>
+                  {isAdmin && (
+                    <div className="flex flex-wrap gap-2 pt-2">
+                      <Button size="sm" variant="outline" onClick={() => openEditInsumoDialog(insumo)}>
+                        <PenSquare className="mr-2 h-4 w-4" /> Editar
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => openPurchaseDialog(insumo)}>
+                        <Plus className="mr-2 h-4 w-4" /> Compra
+                      </Button>
+                      <Button size="sm" variant="destructive" onClick={() => openDeleteDialog(insumo)}>
+                        <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
           </div>
         </CardContent>
       </Card>

@@ -503,19 +503,19 @@ export default function Production() {
   return (
     <TooltipProvider>
       <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Producción</h1>
           <p className="text-muted-foreground">Gestión de recetas y producción</p>
         </div>
-        <Button onClick={() => setProductionDialog(true)}>
+        <Button onClick={() => setProductionDialog(true)} className="w-full sm:w-auto">
           <Plus className="mr-2 h-4 w-4" />
           Nueva Producción
         </Button>
       </div>
 
       <Tabs defaultValue="recipes">
-        <TabsList>
+        <TabsList className="w-full flex-wrap justify-start gap-2 sm:w-auto sm:justify-center">
           <TabsTrigger value="recipes">Recetas</TabsTrigger>
           <TabsTrigger value="products">Productos</TabsTrigger>
         </TabsList>
@@ -607,51 +607,91 @@ export default function Production() {
               </Button>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto rounded-lg border bg-card">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Nombre</TableHead>
-                      <TableHead>Categoría</TableHead>
-                      <TableHead>Precio Venta</TableHead>
-                      <TableHead>Stock Actual</TableHead>
-                      <TableHead>Acciones</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {productos?.map((producto) => (
-                      <TableRow key={producto.id}>
-                        <TableCell className="font-medium">{producto.nombre}</TableCell>
-                        <TableCell>{producto.categoria ?? '—'}</TableCell>
-                        <TableCell>{formatCurrency(producto.precioVenta)}</TableCell>
-                        <TableCell>{producto.stockDisponible}</TableCell>
-                        <TableCell>
-                          <div className="flex flex-wrap gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => openProductDialog(producto)}
-                            >
-                              <PenSquare className="mr-2 h-4 w-4" />
-                              Editar
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => {
-                                setProductToDelete(producto);
-                                setProductDeleteDialogOpen(true);
-                              }}
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Eliminar
-                            </Button>
-                          </div>
-                        </TableCell>
+              <div className="hidden md:block">
+                <div className="overflow-x-auto rounded-lg border bg-card">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nombre</TableHead>
+                        <TableHead>Categoría</TableHead>
+                        <TableHead>Precio Venta</TableHead>
+                        <TableHead>Stock Actual</TableHead>
+                        <TableHead>Acciones</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {productos?.map((producto) => (
+                        <TableRow key={producto.id}>
+                          <TableCell className="font-medium">{producto.nombre}</TableCell>
+                          <TableCell>{producto.categoria ?? '—'}</TableCell>
+                          <TableCell>{formatCurrency(producto.precioVenta)}</TableCell>
+                          <TableCell>{producto.stockDisponible}</TableCell>
+                          <TableCell>
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => openProductDialog(producto)}
+                              >
+                                <PenSquare className="mr-2 h-4 w-4" />
+                                Editar
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => {
+                                  setProductToDelete(producto);
+                                  setProductDeleteDialogOpen(true);
+                                }}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Eliminar
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+
+              <div className="space-y-3 md:hidden">
+                {productos?.length ? (
+                  productos.map((producto) => (
+                    <div key={producto.id} className="space-y-2 rounded-lg border p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-base font-semibold">{producto.nombre}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Categoría: {producto.categoria ?? 'No asignada'}
+                          </p>
+                        </div>
+                        <p className="text-sm font-medium text-primary">
+                          {formatCurrency(producto.precioVenta)}
+                        </p>
+                      </div>
+                      <p className="text-sm text-muted-foreground">Stock: {producto.stockDisponible}</p>
+                      <div className="flex flex-wrap gap-2 pt-2">
+                        <Button size="sm" variant="outline" onClick={() => openProductDialog(producto)}>
+                          <PenSquare className="mr-2 h-4 w-4" /> Editar
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => {
+                            setProductToDelete(producto);
+                            setProductDeleteDialogOpen(true);
+                          }}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-center text-sm text-muted-foreground">Sin productos registrados</p>
+                )}
               </div>
             </CardContent>
           </Card>

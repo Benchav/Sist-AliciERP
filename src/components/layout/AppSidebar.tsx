@@ -77,8 +77,9 @@ const menuItems: MenuItem[] = [
 
 export function AppSidebar() {
   const { user, logout } = useAuthStore();
-  const { open } = useSidebar();
+  const { open, openMobile, isMobile } = useSidebar();
   const location = useLocation();
+  const isExpanded = isMobile ? openMobile : open;
 
   const visibleItems = menuItems.filter((item) => hasRole(user, item.roles));
 
@@ -99,8 +100,8 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" className="border-r bg-card">
       <SidebarContent className="gap-0">
         {/* Header */}
-        <div className="p-6 border-b">
-          {open ? (
+        <div className="border-b p-6">
+          {isExpanded ? (
             <div>
               <h2 className="text-xl font-bold text-foreground">SIST-ALICI</h2>
               <p className="text-xs text-muted-foreground">ERP Panadería</p>
@@ -130,7 +131,7 @@ export function AppSidebar() {
                         activeClassName="bg-accent text-accent-foreground font-medium"
                       >
                         <item.icon className="h-5 w-5 shrink-0" />
-                        {open && (
+                        {isExpanded && (
                           <>
                             <span className="flex-1 text-sm font-medium">{item.title}</span>
                             {isActive && <ChevronRight className="h-4 w-4 text-primary" />}
@@ -147,7 +148,7 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="border-t p-4">
-        {open ? (
+        {isExpanded ? (
           <div className="space-y-3">
             <div className="space-y-1">
               <div className="text-sm font-semibold text-foreground">{user?.username}</div>

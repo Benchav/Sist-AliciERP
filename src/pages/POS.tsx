@@ -21,6 +21,7 @@ import { formatCurrency, amountToCents, calculateChange, calculateTotalPayment }
 import { getApiErrorMessage } from '@/lib/errors';
 import type { Producto, Config, CheckoutRequest } from '@/types';
 import { useAuthStore } from '@/store/authStore';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 
 interface CartItem {
   productId: string;
@@ -36,6 +37,12 @@ export default function POS() {
   const [paymentNIO, setPaymentNIO] = useState('');
   const [paymentUSD, setPaymentUSD] = useState('');
   const [quantityDrafts, setQuantityDrafts] = useState<Record<string, string>>({});
+  const [mobileCartOpen, setMobileCartOpen] = useState(false);
+  const getIsDesktop = () => {
+    if (typeof window === 'undefined') return true;
+    return window.matchMedia('(min-width: 1024px)').matches;
+  };
+  const [isDesktop, setIsDesktop] = useState<boolean>(getIsDesktop);
 
   useEffect(() => {
     setQuantityDrafts((prev) => {
@@ -49,6 +56,21 @@ export default function POS() {
       return next;
     });
   }, [cart]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const mediaQuery = window.matchMedia('(min-width: 1024px)');
+    const handler = () => setIsDesktop(mediaQuery.matches);
+    handler();
+    mediaQuery.addEventListener('change', handler);
+    return () => mediaQuery.removeEventListener('change', handler);
+  }, []);
+
+  useEffect(() => {
+    if (cart.length === 0) {
+      setMobileCartOpen(false);
+    }
+  }, [cart.length]);
 
   const { data: productos } = useQuery({
     queryKey: ['productos'],
@@ -296,8 +318,93 @@ export default function POS() {
     checkoutMutation.mutate(request);
   };
 
+  const handleCheckoutButton = () => {
+    setCheckoutDialog(true);
+    if (!isDesktop) {
+      setMobileCartOpen(false);
+    }
+  };
+
+  const renderCartContent = (scrollAreaClasses = 'max-h-96 overflow-y-auto') => {
+    if (cart.length === 0) {
+      return <p className="text-center text-muted-foreground">Carrito vacío</p>;
+    }
+
+    return (
+      <>
+        <div className={`space-y-3 ${scrollAreaClasses}`}>
+          {cart.map((item) => {
+            const product = productMap.get(item.productId);
+            if (!product) return null;
+            return (
+              <div key={item.productId} className="flex items-center gap-2 rounded-lg border p-3">
+                <div className="flex-1">
+                  <p className="font-medium">{product.nombre}</p>
+                  <p className="text-sm text-muted-foreground">{formatCurrency(product.precioVenta)}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    className="h-8 w-8"
+                    onClick={() => updateQuantity(item.productId, -1)}
+                  >
+                    <Minus className="h-4 w-4" />
+                  </Button>
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={quantityDrafts[item.productId] ?? item.cantidad.toString()}
+                    onChange={(e) => handleQuantityInputChange(item.productId, e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.currentTarget.blur();
+                      }
+                    }}
+                    onBlur={() => commitQuantityInput(item.productId)}
+                    className="h-8 w-16 text-center"
+                  />
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    className="h-8 w-8"
+                    onClick={() => updateQuantity(item.productId, 1)}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8"
+                    onClick={() => removeFromCart(item.productId)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <Separator />
+
+        <div className="space-y-2">
+          <div className="flex justify-between text-lg font-bold">
+            <span>Total:</span>
+            <span className="text-primary">{formatCurrency(totalNIO)}</span>
+          </div>
+        </div>
+
+        <Button className="w-full" size="lg" onClick={handleCheckoutButton} disabled={checkoutMutation.isPending}>
+          {checkoutMutation.isPending ? 'Procesando...' : 'Procesar Venta'}
+        </Button>
+      </>
+    );
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24 lg:pb-0">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Punto de Venta</h1>
         <p className="text-muted-foreground">Procesar ventas</p>
@@ -305,7 +412,7 @@ export default function POS() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Products Grid */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="order-2 space-y-4 lg:order-1 lg:col-span-2">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -347,102 +454,47 @@ export default function POS() {
         </div>
 
         {/* Cart */}
-        <div className="lg:col-span-1">
-          <Card className="sticky top-20">
+        <div className="order-1 hidden lg:order-2 lg:block lg:col-span-1">
+          <Card className="md:sticky md:top-20">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <ShoppingCart className="h-5 w-5" />
                 Carrito
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {cart.length === 0 ? (
-                <p className="text-center text-muted-foreground">Carrito vacío</p>
-              ) : (
-                <>
-                  <div className="space-y-3 max-h-96 overflow-y-auto">
-                    {cart.map((item) => {
-                      const product = productMap.get(item.productId);
-                      if (!product) return null;
-                      return (
-                        <div
-                          key={item.productId}
-                          className="flex items-center gap-2 rounded-lg border p-3"
-                        >
-                          <div className="flex-1">
-                            <p className="font-medium">{product.nombre}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {formatCurrency(product.precioVenta)}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              size="icon"
-                              variant="outline"
-                              className="h-8 w-8"
-                              onClick={() => updateQuantity(item.productId, -1)}
-                            >
-                              <Minus className="h-4 w-4" />
-                            </Button>
-                            <Input
-                              type="text"
-                              inputMode="numeric"
-                              pattern="[0-9]*"
-                              value={quantityDrafts[item.productId] ?? item.cantidad.toString()}
-                              onChange={(e) => handleQuantityInputChange(item.productId, e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  e.currentTarget.blur();
-                                }
-                              }}
-                              onBlur={() => commitQuantityInput(item.productId)}
-                              className="h-8 w-16 text-center"
-                            />
-                            <Button
-                              size="icon"
-                              variant="outline"
-                              className="h-8 w-8"
-                              onClick={() => updateQuantity(item.productId, 1)}
-                            >
-                              <Plus className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-8 w-8"
-                              onClick={() => removeFromCart(item.productId)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  <Separator />
-
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-lg font-bold">
-                      <span>Total:</span>
-                      <span className="text-primary">{formatCurrency(totalNIO)}</span>
-                    </div>
-                  </div>
-
-                  <Button
-                    className="w-full"
-                    size="lg"
-                    onClick={() => setCheckoutDialog(true)}
-                    disabled={checkoutMutation.isPending}
-                  >
-                    {checkoutMutation.isPending ? 'Procesando...' : 'Procesar Venta'}
-                  </Button>
-                </>
-              )}
-            </CardContent>
+            <CardContent className="space-y-4">{renderCartContent()}</CardContent>
           </Card>
         </div>
       </div>
+
+      {!isDesktop && (
+        <>
+          <div className="pointer-events-none fixed inset-x-0 bottom-4 z-30 px-4 lg:hidden">
+            <Button
+              className="pointer-events-auto w-full shadow-lg"
+              size="lg"
+              onClick={() => setMobileCartOpen(true)}
+              disabled={cart.length === 0}
+            >
+              <div className="flex w-full items-center justify-between">
+                <span>Carrito ({cart.length})</span>
+                <span>{formatCurrency(totalNIO)}</span>
+              </div>
+            </Button>
+          </div>
+
+          <Sheet open={mobileCartOpen} onOpenChange={setMobileCartOpen}>
+            <SheetContent side="bottom" className="h-[80vh] rounded-t-3xl border-t">
+              <SheetHeader className="text-left">
+                <SheetTitle className="flex items-center gap-2 text-base font-semibold">
+                  <ShoppingCart className="h-4 w-4" /> Carrito
+                </SheetTitle>
+              </SheetHeader>
+              <div className="mt-4 space-y-4">{renderCartContent('max-h-[55vh] overflow-y-auto pr-1')}</div>
+            </SheetContent>
+          </Sheet>
+        </>
+      )}
 
       {/* Checkout Dialog */}
       <Dialog open={checkoutDialog} onOpenChange={setCheckoutDialog}>

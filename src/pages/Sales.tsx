@@ -118,13 +118,17 @@ export default function Sales() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Ventas</h1>
           <p className="text-muted-foreground">Historial y reportes de ventas</p>
         </div>
         {isAdmin && (
-          <Button onClick={handleExportExcel} disabled={exportExcelMutation.isPending}>
+          <Button
+            onClick={handleExportExcel}
+            disabled={exportExcelMutation.isPending}
+            className="w-full sm:w-auto"
+          >
             {exportExcelMutation.isPending ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -144,13 +148,14 @@ export default function Sales() {
         <CardHeader>
           <CardTitle>Filtros</CardTitle>
         </CardHeader>
-        <CardContent className="flex gap-4">
+        <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <Popover>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
+                size="lg"
                 className={cn(
-                  'justify-start text-left font-normal',
+                  'w-full justify-between text-left font-normal sm:w-auto',
                   !dateFrom && 'text-muted-foreground'
                 )}
               >
@@ -173,8 +178,9 @@ export default function Sales() {
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
+                size="lg"
                 className={cn(
-                  'justify-start text-left font-normal',
+                  'w-full justify-between text-left font-normal sm:w-auto',
                   !dateTo && 'text-muted-foreground'
                 )}
               >
@@ -200,17 +206,18 @@ export default function Sales() {
           <CardTitle>Historial de Ventas</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto rounded-lg border bg-card">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead>Total</TableHead>
-                  <TableHead>Items</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
+          <div className="hidden md:block">
+            <div className="overflow-x-auto rounded-lg border bg-card">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Fecha</TableHead>
+                    <TableHead>Total</TableHead>
+                    <TableHead>Items</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead>Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
               <TableBody>
                 {isLoading ? (
                   <TableRow>
@@ -272,6 +279,66 @@ export default function Sales() {
                 )}
               </TableBody>
             </Table>
+            </div>
+          </div>
+
+          <div className="space-y-3 md:hidden">
+            {isLoading ? (
+              <p className="text-center text-sm text-muted-foreground">Cargando...</p>
+            ) : sales?.length === 0 ? (
+              <p className="text-center text-sm text-muted-foreground">No hay ventas registradas</p>
+            ) : (
+              sales?.map((venta) => (
+                <div key={venta.id} className="space-y-2 rounded-lg border p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-base font-semibold">
+                        {format(new Date(venta.fecha), 'dd/MM/yyyy HH:mm')}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{venta.items.length} items</p>
+                    </div>
+                    <Badge variant={venta.estado === 'ANULADA' ? 'destructive' : 'default'}>
+                      {venta.estado}
+                    </Badge>
+                  </div>
+                  <p className="text-lg font-bold text-primary">{formatCurrency(venta.totalNIO)}</p>
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => pdfMutation.mutate(venta.id)}
+                      disabled={pdfMutation.isPending && pdfMutation.variables === venta.id}
+                      className="flex-1 sm:flex-none"
+                    >
+                      {pdfMutation.isPending && pdfMutation.variables === venta.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <>
+                          <FileText className="mr-2 h-4 w-4" /> Ver factura
+                        </>
+                      )}
+                    </Button>
+                    {isAdmin && venta.estado !== 'ANULADA' && (
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => deleteMutation.mutate(venta.id)}
+                        disabled={deleteMutation.isPending && deleteMutation.variables === venta.id}
+                        className="flex-1 sm:flex-none"
+                      >
+                        {deleteMutation.isPending && deleteMutation.variables === venta.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <>
+                            <Trash2 className="mr-2 h-4 w-4" /> Anular
+                          </>
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </CardContent>
       </Card>
