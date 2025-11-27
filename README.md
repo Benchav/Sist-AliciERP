@@ -1,73 +1,81 @@
-# Welcome to your Lovable project
+# Sist-Alici ERP Frontend
 
-## Project info
+Interfaz web construida en React + Vite para operar el ERP de la panadería **SIST-ALICI**. El proyecto provee una experiencia completa para el control de inventarios, recetas, producción, ventas y configuración general, alineado con la API pública `https://sist-alici.vercel.app/api`.
 
-**URL**: https://lovable.dev/projects/c20c24a9-fbff-49b3-a376-da034b6ebd1e
+## Características principales
 
-## How can I edit this code?
+- **Autenticación protegida** con roles JWT persistidos en localStorage y rutas privadas.
+- **Inventario completo** con CRUD de insumos, registro de compras y estados visuales según stock.
+- **Gestión de recetas y productos** con edición avanzada: listado que muestra el stock disponible por insumo y un asistente de conversión manual (kg ↔ g, lb ↔ kg, lt ↔ ml, etc.) dentro del modal de recetas.
+- **Módulo de Producción** que registra lotes basados en recetas, valida cantidades y actualiza automáticamente productos e insumos.
+- **Punto de Venta (POS)** con carrito dinámico, edición manual de cantidades altas, cobros multimoneda y cálculo de cambio en córdobas.
+- **Módulo de Ventas** para historial y detalle sincronizado con el checkout.
+- **Configuración** que consume `/config` para mantener la tasa de cambio oficial.
+- **UX afinada**: toasts consistentes, tablas responsivas, estados vacíos claros y componentes shadcn-ui reutilizables.
 
-There are several ways of editing your application.
+## Stack tecnológico
 
-**Use Lovable**
+- React 18 con TypeScript y Vite 5
+- TanStack Query para cacheo y sincronización de datos
+- Zustand para el estado de autenticación
+- shadcn-ui + Tailwind CSS como librería de componentes
+- Axios con interceptores para manejar tokens, errores y redireccionamientos
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/c20c24a9-fbff-49b3-a376-da034b6ebd1e) and start prompting.
+## Requisitos previos
 
-Changes made via Lovable will be committed automatically to this repo.
+- Node.js 18+ (se recomienda administrarlo con `nvm`)
+- npm 9+
 
-**Use your preferred IDE**
+## Instalación y ejecución
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+```bash
+git clone https://github.com/Benchav/Sist-AliciERP.git
+cd Sist-AliciERP
+npm install
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+### Scripts disponibles
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+- `npm run dev`: arranca Vite en modo desarrollo.
+- `npm run build`: genera el bundle de producción (utilizado para validar cada cambio reciente).
+- `npm run preview`: sirve el build generado para pruebas locales.
 
-**Use GitHub Codespaces**
+## Integración con la API
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+- Todas las llamadas usan el cliente `src/lib/api.ts`, que adjunta el header `Authorization` cuando existe token.
+- Endpoints cubiertos:
+	- `/inventory` para CRUD de insumos y compras.
+	- `/production/products`, `/production/recipes` y `/production` para productos, recetas y registros de producción.
+	- `/sales` para historial y `/sales/checkout` para el POS.
+	- `/config` para la tasa de cambio.
+- El formulario de recetas incluye un popover de conversión manual que permite ingresar ingredientes en otras unidades y convertirlos a la unidad base almacenada en inventario.
 
-## What technologies are used for this project?
+## Estructura destacada
 
-This project is built with:
+```
+src/
+	pages/
+		Production.tsx     # CRUD de recetas/productos + conversor de unidades
+		Inventory.tsx      # Inventario con compras y estados
+		POS.tsx            # Punto de venta con pagos multimoneda
+		Sales.tsx          # Historial de ventas
+		Settings.tsx       # Configuraciones generales
+	lib/
+		api.ts            # Cliente Axios con interceptores
+		format.ts         # Utilidades de formato monetario y de montos
+	store/
+		authStore.ts      # Persistencia de sesión con Zustand
+```
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## Buenas prácticas aplicadas
 
-## How can I deploy this project?
+- Validaciones de formularios en cliente para evitar requests inválidos.
+- Toasts de éxito/error consistentes vía `sonner`.
+- Componentes desacoplados para navegación, layout y tablas reutilizables.
+- Uso de React Query `invalidateQueries` después de mutaciones para mantener la UI sincronizada.
+- Conversión de unidades interactiva que documenta equivalencias y reduce errores de captura.
 
-Simply open [Lovable](https://lovable.dev/projects/c20c24a9-fbff-49b3-a376-da034b6ebd1e) and click on Share -> Publish.
+## Autor
 
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+- **Joshua Chávez Lau** – [Portafolio](https://joshuachavl.vercel.app)

@@ -27,11 +27,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Plus, PenSquare, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/format';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { getApiErrorMessage } from '@/lib/errors';
 import type { Producto, Receta, ProductionRequest, Insumo } from '@/types';
 import {
@@ -66,6 +68,10 @@ export default function Production() {
     costoManoObra: '',
     items: [{ insumoId: '', cantidad: '' }],
   });
+  const createEmptyConverterState = () => ({ unit: '', value: '' });
+  const [converterState, setConverterState] = useState<Array<{ unit: string; value: string }>>([
+    createEmptyConverterState(),
+  ]);
   const [recipeDeleteDialogOpen, setRecipeDeleteDialogOpen] = useState(false);
   const [recipeToDelete, setRecipeToDelete] = useState<Receta | null>(null);
 
@@ -102,6 +108,97 @@ export default function Production() {
     if (!productos) return new Map<string, Producto>();
     return new Map(productos.map((producto) => [producto.id, producto]));
   }, [productos]);
+
+  const getRecetaLabel = (receta: Receta): string => {
+    const productName = productMap.get(receta.productoId)?.nombre ?? receta.producto?.nombre;
+    return productName ?? 'Receta sin nombre';
+  };
+
+  const formatQuantity = (value: number): string => {
+    return new Intl.NumberFormat('es-NI', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    }).format(value);
+  };
+
+  const UNIT_TIPS: Record<string, string> = {
+    kg: '1 kg equivale a 1000 g. Use valores decimales para gramos (0.25 kg = 250 g).',
+    g: '1000 g equivalen a 1 kg. Ingrese gramos directamente.',
+    lb: '1 lb ≈ 0.45 kg (454 g). Utilice decimales para fracciones.',
+    lt: '1 lt equivale a 1000 ml. 0.5 lt = 500 ml.',
+    l: '1 L equivale a 1000 ml. 0.5 L = 500 ml.',
+    ml: '1000 ml equivalen a 1 lt. Ingrese mililitros directamente.',
+  };
+
+  const UNIT_CONVERSIONS: Record<
+    string,
+    Array<{ unit: string; label: string; multiplier: number }>
+  > = {
+    kg: [
+      { unit: 'g', label: 'Gramos (g)', multiplier: 0.001 },
+      { unit: 'lb', label: 'Libras (lb)', multiplier: 0.453592 },
+      { unit: 'oz', label: 'Onzas (oz)', multiplier: 0.0283495 },
+    ],
+    g: [
+      { unit: 'kg', label: 'Kilogramos (kg)', multiplier: 1000 },
+      { unit: 'lb', label: 'Libras (lb)', multiplier: 453.592 },
+      { unit: 'oz', label: 'Onzas (oz)', multiplier: 28.3495 },
+    ],
+    lb: [
+      { unit: 'kg', label: 'Kilogramos (kg)', multiplier: 2.20462 },
+      { unit: 'g', label: 'Gramos (g)', multiplier: 0.00220462 },
+      { unit: 'oz', label: 'Onzas (oz)', multiplier: 0.0625 },
+    ],
+    oz: [
+      { unit: 'kg', label: 'Kilogramos (kg)', multiplier: 35.274 },
+      { unit: 'g', label: 'Gramos (g)', multiplier: 0.035274 },
+      { unit: 'lb', label: 'Libras (lb)', multiplier: 16 },
+    ],
+    lt: [
+      { unit: 'ml', label: 'Mililitros (ml)', multiplier: 0.001 },
+      { unit: 'l', label: 'Litros (L)', multiplier: 1 },
+      { unit: 'oz', label: 'Onzas líquidas (oz fl)', multiplier: 0.0295735 },
+    ],
+    l: [
+      { unit: 'ml', label: 'Mililitros (ml)', multiplier: 0.001 },
+      { unit: 'lt', label: 'Litros (lt)', multiplier: 1 },
+      { unit: 'oz', label: 'Onzas líquidas (oz fl)', multiplier: 0.0295735 },
+    ],
+    ml: [
+      { unit: 'lt', label: 'Litros (lt)', multiplier: 1000 },
+      { unit: 'l', label: 'Litros (L)', multiplier: 1000 },
+    ],
+  };
+
+  const getUnitTip = (unidad?: string): string | undefined => {
+    if (!unidad) return undefined;
+    const normalized = unidad.toLowerCase();
+    return UNIT_TIPS[normalized]
+      ? `Unidad base: ${unidad}. ${UNIT_TIPS[normalized]}`
+      : `Unidad base: ${unidad}. Ingrese la cantidad exactamente en esta unidad.`;
+  };
+
+  const getConversionOptions = (unidad?: string) => {
+    if (!unidad) return [];
+    return UNIT_CONVERSIONS[unidad.toLowerCase()] ?? [];
+  };
+
+  const updateConverterState = (index: number, field: 'unit' | 'value', value: string) => {
+    setConverterState((prev) => {
+      const next = [...prev];
+      const base = next[index] ?? createEmptyConverterState();
+      next[index] = { ...base, [field]: value };
+      return next;
+    });
+  };
+
+  const clearConverterState = (index: number) => {
+    setConverterState((prev) => {
+      const next = [...prev];
+      next[index] = createEmptyConverterState();
+      return next;
+    });
+  };
 
   const productionMutation = useMutation({
     mutationFn: async (request: ProductionRequest) => {
@@ -142,6 +239,7 @@ export default function Production() {
   const resetRecipeForm = () => {
     setRecipeForm({ productoId: '', costoManoObra: '', items: [{ insumoId: '', cantidad: '' }] });
     setEditingReceta(null);
+    setConverterState([createEmptyConverterState()]);
   };
 
   const openRecipeDialog = (receta?: Receta) => {
@@ -155,6 +253,7 @@ export default function Production() {
           cantidad: item.cantidad.toString(),
         })),
       });
+      setConverterState(receta.items.map(() => createEmptyConverterState()));
     } else {
       resetRecipeForm();
     }
@@ -166,6 +265,7 @@ export default function Production() {
       ...prev,
       items: [...prev.items, { insumoId: '', cantidad: '' }],
     }));
+    setConverterState((prev) => [...prev, createEmptyConverterState()]);
   };
 
   const updateRecipeItem = (index: number, field: 'insumoId' | 'cantidad', value: string) => {
@@ -185,6 +285,12 @@ export default function Production() {
         ...prev,
         items: prev.items.filter((_, idx) => idx !== index),
       };
+    });
+    setConverterState((prev) => {
+      if (prev.length === 1) {
+        return prev;
+      }
+      return prev.filter((_, idx) => idx !== index);
     });
   };
 
@@ -262,7 +368,8 @@ export default function Production() {
 
   const updateRecipeMutation = useMutation({
     mutationFn: async ({ id, payload }: { id: string; payload: RecipePayload }) => {
-      await api.put(`/production/recipes/${id}`, payload);
+      // API only exposes a POST-based upsert endpoint for recetas
+      await api.post('/production/recipes', { ...payload, id });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['recetas'] });
@@ -391,7 +498,8 @@ export default function Production() {
   const isDeletingRecipe = deleteRecipeMutation.isPending;
 
   return (
-    <div className="space-y-6">
+    <TooltipProvider>
+      <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Producción</h1>
@@ -459,6 +567,7 @@ export default function Production() {
                             <TableHead>Insumo</TableHead>
                             <TableHead>Cantidad</TableHead>
                             <TableHead>Unidad</TableHead>
+                            <TableHead>Stock actual</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -467,8 +576,11 @@ export default function Production() {
                             return (
                               <TableRow key={idx}>
                                 <TableCell>{insumo?.nombre ?? '—'}</TableCell>
-                                <TableCell>{item.cantidad.toFixed(2)}</TableCell>
+                                <TableCell>{formatQuantity(item.cantidad)}</TableCell>
                                 <TableCell>{insumo?.unidad ?? '—'}</TableCell>
+                                <TableCell>
+                                  {typeof insumo?.stock === 'number' ? formatQuantity(insumo.stock) : '—'}
+                                </TableCell>
                               </TableRow>
                             );
                           })}
@@ -658,50 +770,164 @@ export default function Production() {
                   Agregar insumo
                 </Button>
               </div>
+              <p className="text-xs text-muted-foreground">
+                Ingrese las cantidades usando la misma unidad definida en Inventario. Utilice decimales para subunidades
+                (ej. 0.25 kg ≈ 250 g).
+              </p>
               <div className="space-y-3">
-                {recipeForm.items.map((item, index) => (
-                  <div key={`ingredient-${index}`} className="grid gap-3 sm:grid-cols-[1fr,160px,auto]">
-                    <div className="space-y-2">
-                      <Label>Insumo</Label>
-                      <Select
-                        value={item.insumoId}
-                        onValueChange={(value) => updateRecipeItem(index, 'insumoId', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccione" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {insumos?.map((insumo) => (
-                            <SelectItem key={insumo.id} value={insumo.id}>
-                              {insumo.nombre}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                {recipeForm.items.map((item, index) => {
+                  const insumo = item.insumoId ? insumoMap.get(item.insumoId) : undefined;
+                  const baseUnit = insumo?.unidad;
+                  const conversionOptions = getConversionOptions(baseUnit);
+                  const converter = converterState[index] ?? createEmptyConverterState();
+                  const selectedConversion = conversionOptions.find((opt) => opt.unit === converter.unit);
+                  const parsedValue = parseFloat(converter.value);
+                  const convertedValue =
+                    selectedConversion && !Number.isNaN(parsedValue)
+                      ? parsedValue * selectedConversion.multiplier
+                      : null;
+
+                  return (
+                    <div key={`ingredient-${index}`} className="grid gap-3 sm:grid-cols-[1fr,240px,auto]">
+                      <div className="space-y-2">
+                        <Label>Insumo</Label>
+                        <Select
+                          value={item.insumoId}
+                          onValueChange={(value) => updateRecipeItem(index, 'insumoId', value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleccione" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {insumos?.map((insumoOption) => (
+                              <SelectItem key={insumoOption.id} value={insumoOption.id}>
+                                {insumoOption.nombre}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <Label>Cantidad</Label>
+                          {item.insumoId && conversionOptions.length > 0 ? (
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button variant="ghost" size="sm" type="button">
+                                  Conversor
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent align="start" className="w-[260px] space-y-3">
+                                <div>
+                                  <p className="text-sm font-medium">Conversor manual</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    Convierte valores a {baseUnit} y aplica el resultado automáticamente.
+                                  </p>
+                                </div>
+                                <div className="space-y-2">
+                                  <Label className="text-xs">Unidad de origen</Label>
+                                  <Select
+                                    value={converter.unit}
+                                    onValueChange={(value) => updateConverterState(index, 'unit', value)}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Seleccione" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {conversionOptions.map((option) => (
+                                        <SelectItem key={option.unit} value={option.unit}>
+                                          {option.label}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div className="space-y-2">
+                                  <Label className="text-xs">Cantidad en la unidad elegida</Label>
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={converter.value}
+                                    onChange={(e) => updateConverterState(index, 'value', e.target.value)}
+                                  />
+                                </div>
+                                {convertedValue !== null ? (
+                                  <p className="text-sm">
+                                    Resultado: <span className="font-semibold">{formatQuantity(convertedValue)}</span>{' '}
+                                    {baseUnit}
+                                  </p>
+                                ) : (
+                                  <p className="text-xs text-muted-foreground">
+                                    Seleccione una unidad y escriba una cantidad para ver el resultado.
+                                  </p>
+                                )}
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="secondary"
+                                    className="flex-1"
+                                    type="button"
+                                    onClick={() => clearConverterState(index)}
+                                  >
+                                    Limpiar
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    className="flex-1"
+                                    type="button"
+                                    disabled={convertedValue === null || convertedValue <= 0}
+                                    onClick={() => {
+                                      if (convertedValue && convertedValue > 0) {
+                                        updateRecipeItem(index, 'cantidad', convertedValue.toString());
+                                        clearConverterState(index);
+                                      }
+                                    }}
+                                  >
+                                    Usar valor
+                                  </Button>
+                                </div>
+                              </PopoverContent>
+                            </Popover>
+                          ) : null}
+                        </div>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={item.cantidad}
+                          onChange={(e) => updateRecipeItem(index, 'cantidad', e.target.value)}
+                        />
+                        {item.insumoId ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <p className="cursor-help text-xs text-muted-foreground">
+                                Unidad base: {baseUnit ?? '—'}
+                              </p>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {getUnitTip(baseUnit) ??
+                                'Ingrese la cantidad exactamente en la unidad configurada en Inventario.'}
+                            </TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">Seleccione un insumo para ver la unidad.</p>
+                        )}
+                      </div>
+                      <div className="flex items-end justify-end">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeRecipeItem(index)}
+                          disabled={recipeForm.items.length === 1}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label>Cantidad</Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={item.cantidad}
-                        onChange={(e) => updateRecipeItem(index, 'cantidad', e.target.value)}
-                      />
-                    </div>
-                    <div className="flex items-end justify-end">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeRecipeItem(index)}
-                        disabled={recipeForm.items.length === 1}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -784,7 +1010,7 @@ export default function Production() {
                 <SelectContent>
                   {recetas?.map((receta) => (
                     <SelectItem key={receta.id} value={receta.id}>
-                      {receta.producto?.nombre ?? receta.nombre}
+                      {getRecetaLabel(receta)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -813,5 +1039,6 @@ export default function Production() {
         </DialogContent>
       </Dialog>
     </div>
+    </TooltipProvider>
   );
 }
