@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -35,6 +35,20 @@ export default function POS() {
   const [checkoutDialog, setCheckoutDialog] = useState(false);
   const [paymentNIO, setPaymentNIO] = useState('');
   const [paymentUSD, setPaymentUSD] = useState('');
+  const [quantityDrafts, setQuantityDrafts] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    setQuantityDrafts((prev) => {
+      const next = { ...prev };
+      const ids = new Set(cart.map((item) => item.producto.id));
+      Object.keys(next).forEach((id) => {
+        if (!ids.has(id)) {
+          delete next[id];
+        }
+      });
+      return next;
+    });
+  }, [cart]);
 
   const { data: productos } = useQuery({
     queryKey: ['productos'],
@@ -122,6 +136,58 @@ export default function POS() {
 
   const removeFromCart = (productId: string) => {
     setCart((prev) => prev.filter((item) => item.producto.id !== productId));
+  };
+
+  const handleQuantityInputChange = (productId: string, value: string) => {
+    const digitsOnly = value.replace(/[^0-9]/g, '');
+    setQuantityDrafts((prev) => ({
+      ...prev,
+      [productId]: digitsOnly,
+    }));
+  };
+
+  const commitQuantityInput = (productId: string) => {
+    const draft = quantityDrafts[productId];
+    if (!draft) {
+      setQuantityDrafts((prev) => {
+        const next = { ...prev };
+        delete next[productId];
+        return next;
+      });
+      return;
+    }
+
+    const parsed = parseInt(draft, 10);
+    if (Number.isNaN(parsed) || parsed <= 0) {
+      toast.error('Ingrese una cantidad válida');
+      setQuantityDrafts((prev) => {
+        const next = { ...prev };
+        delete next[productId];
+        return next;
+      });
+      return;
+    }
+
+    setCart((prev) =>
+      prev.map((item) => {
+        if (item.producto.id !== productId) {
+          return item;
+        }
+
+        if (parsed > item.producto.stockDisponible) {
+          toast.error('No hay más stock disponible');
+          return item;
+        }
+
+        return { ...item, cantidad: parsed };
+      })
+    );
+
+    setQuantityDrafts((prev) => {
+      const next = { ...prev };
+      delete next[productId];
+      return next;
+    });
   };
 
   const totalNIO = useMemo(
@@ -271,7 +337,20 @@ export default function POS() {
                           >
                             <Minus className="h-4 w-4" />
                           </Button>
-                          <span className="w-8 text-center">{item.cantidad}</span>
+                          <Input
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            value={quantityDrafts[item.producto.id] ?? item.cantidad.toString()}
+                            onChange={(e) => handleQuantityInputChange(item.producto.id, e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.currentTarget.blur();
+                              }
+                            }}
+                            onBlur={() => commitQuantityInput(item.producto.id)}
+                            className="h-8 w-16 text-center"
+                          />
                           <Button
                             size="icon"
                             variant="outline"
