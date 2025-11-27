@@ -105,8 +105,8 @@ export function AppSidebar() {
             <div className="flex items-center gap-3">
               <img src="/favicon.svg" alt="Logo" className="h-12 w-12 rounded-2xl" />
               <div>
-                <h2 className="text-xl font-extrabold tracking-tight text-foreground">SIST-ALICI</h2>
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">ERP Panadería</p>
+                <h2 className="text-xl font-extrabold tracking-tight text-foreground">Repostería Alicia</h2>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Gestión Inteligente</p>
               </div>
             </div>
           ) : (
