@@ -34,7 +34,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Plus, PenSquare, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { formatCurrency, amountToCents } from '@/lib/format';
+import { formatCurrency } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import type { Insumo, PurchaseRequest } from '@/types';
 import { useAuthStore } from '@/store/authStore';
@@ -178,7 +178,7 @@ export default function Inventory() {
     purchaseMutation.mutate({
       insumoId: selectedInsumo.id,
       cantidad: quantityValue,
-      costoTotal: amountToCents(costValue),
+      costoTotal: costValue,
     });
   };
 

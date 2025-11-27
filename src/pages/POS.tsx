@@ -23,7 +23,7 @@ import type { Producto, Config, CheckoutRequest } from '@/types';
 import { useAuthStore } from '@/store/authStore';
 
 interface CartItem {
-  producto: Producto;
+  productId: string;
   cantidad: number;
 }
 
@@ -40,7 +40,7 @@ export default function POS() {
   useEffect(() => {
     setQuantityDrafts((prev) => {
       const next = { ...prev };
-      const ids = new Set(cart.map((item) => item.producto.id));
+      const ids = new Set(cart.map((item) => item.productId));
       Object.keys(next).forEach((id) => {
         if (!ids.has(id)) {
           delete next[id];
@@ -57,6 +57,20 @@ export default function POS() {
       return data.data;
     },
   });
+
+  const productMap = useMemo(() => {
+    if (!productos) return new Map<string, Producto>();
+    return new Map(productos.map((producto) => [producto.id, producto]));
+  }, [productos]);
+
+  useEffect(() => {
+    setCart((prev) =>
+      prev.filter((item) => {
+        const product = productMap.get(item.productId);
+        return product && product.stockDisponible > 0;
+      })
+    );
+  }, [productMap]);
 
   const { data: config } = useQuery({
     queryKey: ['config'],
@@ -93,36 +107,45 @@ export default function POS() {
   }, [productos, search]);
 
   const addToCart = (producto: Producto) => {
-    if (producto.stockDisponible === 0) {
+    const latestProduct = productMap.get(producto.id) ?? producto;
+
+    if (latestProduct.stockDisponible === 0) {
       toast.error('Producto sin stock');
       return;
     }
 
     setCart((prev) => {
-      const existing = prev.find((item) => item.producto.id === producto.id);
+      const existing = prev.find((item) => item.productId === latestProduct.id);
       if (existing) {
-        if (existing.cantidad >= producto.stockDisponible) {
+        if (latestProduct && existing.cantidad >= latestProduct.stockDisponible) {
           toast.error('No hay más stock disponible');
           return prev;
         }
         return prev.map((item) =>
-          item.producto.id === producto.id
+          item.productId === latestProduct.id
             ? { ...item, cantidad: item.cantidad + 1 }
             : item
         );
       }
-      return [...prev, { producto, cantidad: 1 }];
+      return [...prev, { productId: latestProduct.id, cantidad: 1 }];
     });
   };
 
   const updateQuantity = (productId: string, delta: number) => {
+    const product = productMap.get(productId);
+    if (!product) {
+      setCart((prev) => prev.filter((item) => item.productId !== productId));
+      toast.error('Producto no disponible');
+      return;
+    }
+
     setCart((prev) =>
       prev
         .map((item) => {
-          if (item.producto.id === productId) {
+          if (item.productId === productId) {
             const newCantidad = item.cantidad + delta;
             if (newCantidad <= 0) return null;
-            if (newCantidad > item.producto.stockDisponible) {
+            if (newCantidad > product.stockDisponible) {
               toast.error('No hay más stock disponible');
               return item;
             }
@@ -135,7 +158,7 @@ export default function POS() {
   };
 
   const removeFromCart = (productId: string) => {
-    setCart((prev) => prev.filter((item) => item.producto.id !== productId));
+    setCart((prev) => prev.filter((item) => item.productId !== productId));
   };
 
   const handleQuantityInputChange = (productId: string, value: string) => {
@@ -168,17 +191,28 @@ export default function POS() {
       return;
     }
 
+    const product = productMap.get(productId);
+    if (!product) {
+      toast.error('Producto no disponible');
+      removeFromCart(productId);
+      return;
+    }
+
+    if (parsed > product.stockDisponible) {
+      toast.error('No hay más stock disponible');
+      setQuantityDrafts((prev) => {
+        const next = { ...prev };
+        delete next[productId];
+        return next;
+      });
+      return;
+    }
+
     setCart((prev) =>
       prev.map((item) => {
-        if (item.producto.id !== productId) {
+        if (item.productId !== productId) {
           return item;
         }
-
-        if (parsed > item.producto.stockDisponible) {
-          toast.error('No hay más stock disponible');
-          return item;
-        }
-
         return { ...item, cantidad: parsed };
       })
     );
@@ -190,10 +224,13 @@ export default function POS() {
     });
   };
 
-  const totalNIO = useMemo(
-    () => cart.reduce((sum, item) => sum + item.producto.precioVenta * item.cantidad, 0),
-    [cart]
-  );
+  const totalNIO = useMemo(() => {
+    return cart.reduce((sum, item) => {
+      const product = productMap.get(item.productId);
+      if (!product) return sum;
+      return sum + product.precioVenta * item.cantidad;
+    }, 0);
+  }, [cart, productMap]);
 
   const change = useMemo(() => {
     if (!config) return 0;
@@ -241,9 +278,16 @@ export default function POS() {
       });
     }
 
+    const unavailableItem = cart.find((item) => !productMap.get(item.productId));
+    if (unavailableItem) {
+      toast.error('Algunos productos ya no están disponibles, actualice el carrito.');
+      setCart((prev) => prev.filter((item) => productMap.get(item.productId)));
+      return;
+    }
+
     const request: CheckoutRequest = {
       items: cart.map((item) => ({
-        productoId: item.producto.id,
+        productoId: item.productId,
         cantidad: item.cantidad,
       })),
       pagos,
@@ -317,59 +361,63 @@ export default function POS() {
               ) : (
                 <>
                   <div className="space-y-3 max-h-96 overflow-y-auto">
-                    {cart.map((item) => (
-                      <div
-                        key={item.producto.id}
-                        className="flex items-center gap-2 rounded-lg border p-3"
-                      >
-                        <div className="flex-1">
-                          <p className="font-medium">{item.producto.nombre}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {formatCurrency(item.producto.precioVenta)}
-                          </p>
+                    {cart.map((item) => {
+                      const product = productMap.get(item.productId);
+                      if (!product) return null;
+                      return (
+                        <div
+                          key={item.productId}
+                          className="flex items-center gap-2 rounded-lg border p-3"
+                        >
+                          <div className="flex-1">
+                            <p className="font-medium">{product.nombre}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {formatCurrency(product.precioVenta)}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="icon"
+                              variant="outline"
+                              className="h-8 w-8"
+                              onClick={() => updateQuantity(item.productId, -1)}
+                            >
+                              <Minus className="h-4 w-4" />
+                            </Button>
+                            <Input
+                              type="text"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              value={quantityDrafts[item.productId] ?? item.cantidad.toString()}
+                              onChange={(e) => handleQuantityInputChange(item.productId, e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.currentTarget.blur();
+                                }
+                              }}
+                              onBlur={() => commitQuantityInput(item.productId)}
+                              className="h-8 w-16 text-center"
+                            />
+                            <Button
+                              size="icon"
+                              variant="outline"
+                              className="h-8 w-8"
+                              onClick={() => updateQuantity(item.productId, 1)}
+                            >
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8"
+                              onClick={() => removeFromCart(item.productId)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            size="icon"
-                            variant="outline"
-                            className="h-8 w-8"
-                            onClick={() => updateQuantity(item.producto.id, -1)}
-                          >
-                            <Minus className="h-4 w-4" />
-                          </Button>
-                          <Input
-                            type="text"
-                            inputMode="numeric"
-                            pattern="[0-9]*"
-                            value={quantityDrafts[item.producto.id] ?? item.cantidad.toString()}
-                            onChange={(e) => handleQuantityInputChange(item.producto.id, e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                e.currentTarget.blur();
-                              }
-                            }}
-                            onBlur={() => commitQuantityInput(item.producto.id)}
-                            className="h-8 w-16 text-center"
-                          />
-                          <Button
-                            size="icon"
-                            variant="outline"
-                            className="h-8 w-8"
-                            onClick={() => updateQuantity(item.producto.id, 1)}
-                          >
-                            <Plus className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-8 w-8"
-                            onClick={() => removeFromCart(item.producto.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   <Separator />
@@ -385,8 +433,9 @@ export default function POS() {
                     className="w-full"
                     size="lg"
                     onClick={() => setCheckoutDialog(true)}
+                    disabled={checkoutMutation.isPending}
                   >
-                    Procesar Venta
+                    {checkoutMutation.isPending ? 'Procesando...' : 'Procesar Venta'}
                   </Button>
                 </>
               )}

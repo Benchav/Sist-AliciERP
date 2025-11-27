@@ -274,6 +274,9 @@ export default function Production() {
       items[index] = { ...items[index], [field]: value };
       return { ...prev, items };
     });
+    if (field === 'insumoId') {
+      clearConverterState(index);
+    }
   };
 
   const removeRecipeItem = (index: number) => {
