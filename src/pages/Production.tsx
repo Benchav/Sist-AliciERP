@@ -456,7 +456,7 @@ export default function Production() {
 
     const costoValue = parseFloat(recipeForm.costoManoObra || '0');
     if (Number.isNaN(costoValue) || costoValue < 0) {
-      toast.error('Ingrese un costo de mano de obra válido');
+      toast.error('Ingrese un costo operativo válido');
       return;
     }
 
@@ -569,7 +569,7 @@ export default function Production() {
                             <p className="text-sm text-slate-600">
                               Costo Total: <span className="font-medium text-slate-900">{formatCurrency(costoTotal)}</span>
                               <span className="text-xs text-slate-400 ml-1">
-                                ({formatCurrency(manoObra)} M.O. + {formatCurrency(costoInsumos)} Insumos)
+                                ({formatCurrency(manoObra)} Costo Op. + {formatCurrency(costoInsumos)} Insumos)
                               </span>
                             </p>
                             <div className="flex items-center gap-2 text-sm">
@@ -847,7 +847,7 @@ export default function Production() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="receta-costo">Costo mano de obra (C$)</Label>
+                <Label htmlFor="receta-costo">Costo Operativo (C$)</Label>
                 <Input
                   id="receta-costo"
                   type="number"

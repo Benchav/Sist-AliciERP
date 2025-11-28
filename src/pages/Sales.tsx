@@ -318,7 +318,7 @@ export default function Sales() {
                   ) : (
                     filteredSales.map((venta) => (
                       <TableRow key={venta.id} className="hover:bg-slate-50/50 border-b border-slate-50 transition-colors">
-                        <TableCell className="text-slate-700 pl-6">{format(new Date(venta.fecha), 'dd/MM/yyyy HH:mm')}</TableCell>
+                        <TableCell className="text-slate-700 pl-6">{format(new Date(venta.fecha), 'dd/MM/yyyy h:mm a')}</TableCell>
                         <TableCell className="font-medium text-slate-900">
                           {formatCurrency(venta.totalNIO)}
                         </TableCell>
@@ -380,7 +380,7 @@ export default function Sales() {
                     <div className="flex items-start justify-between gap-3 mb-3">
                       <div>
                         <p className="text-base font-semibold text-slate-900">
-                          {format(new Date(venta.fecha), 'dd/MM/yyyy HH:mm')}
+                          {format(new Date(venta.fecha), 'dd/MM/yyyy h:mm a')}
                         </p>
                         <p className="text-xs text-slate-500">{venta.items.length} items</p>
                       </div>

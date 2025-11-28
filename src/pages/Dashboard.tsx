@@ -258,7 +258,7 @@ export default function Dashboard() {
                         <td className="px-6 py-4 text-slate-600">
                           <div className="flex items-center gap-2">
                             <Clock className="h-3.5 w-3.5 text-slate-400" />
-                            {format(new Date(venta.fecha), 'HH:mm')}
+                            {format(new Date(venta.fecha), 'h:mm a')}
                           </div>
                         </td>
                         <td className="px-6 py-4 font-semibold text-slate-900">
@@ -308,7 +308,7 @@ export default function Dashboard() {
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2 text-slate-500 text-sm">
                         <Clock className="h-3.5 w-3.5" />
-                        {format(new Date(venta.fecha), 'HH:mm')}
+                        {format(new Date(venta.fecha), 'h:mm a')}
                       </div>
                       <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
                             venta.estado === 'COMPLETA' 
