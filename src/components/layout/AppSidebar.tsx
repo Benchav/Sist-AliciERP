@@ -5,6 +5,7 @@ import {
   Factory,
   Receipt,
   Settings,
+  Users,
   LogOut,
   ChevronRight,
   type LucideIcon,
@@ -66,6 +67,12 @@ const menuItems: MenuItem[] = [
     icon: Receipt,
     url: '/sales',
     roles: ['ADMIN', 'CAJERO'],
+  },
+  {
+    title: 'Usuarios',
+    icon: Users,
+    url: '/users',
+    roles: ['ADMIN'],
   },
   {
     title: 'Configuración',

@@ -4,6 +4,7 @@ export interface User {
   id: string;
   username: string;
   role: UserRole;
+  nombre?: string;
 }
 
 export interface AuthUserPayload {
