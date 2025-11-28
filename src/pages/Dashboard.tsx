@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertTriangle, TrendingUp, ShoppingBag, Factory, Package, ArrowRight, Clock, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { formatCurrency } from '@/lib/format';
-import type { DashboardStats, Producto, Insumo, Venta } from '@/types';
+import type { DashboardStats, Producto, Insumo, Venta, Receta } from '@/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuthStore } from '@/store/authStore';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
@@ -18,20 +18,36 @@ export default function Dashboard() {
   const { data: dashboardData, isLoading } = useQuery({
     queryKey: ['dashboard-data', user?.role],
     queryFn: async () => {
-      const [productosRes, insumosRes] = await Promise.all([
+      const [productosRes, insumosRes, recetasRes] = await Promise.all([
         api.get<{ data: Producto[] }>('/production/products'),
         api.get<{ data: Insumo[] }>('/inventory'),
+        api.get<{ data: Receta[] }>('/production/recipes'),
       ]);
 
       const productos = productosRes.data.data;
       const insumos = insumosRes.data.data;
+      const recetas = recetasRes.data.data;
 
       const productosDisponibles = productos.filter((producto) => producto.stockDisponible > 0).length;
       const insumosStockBajo = insumos.filter((insumo) => insumo.stock < 10).length;
 
+      // Helper to calculate cost of a product based on its recipe
+      const calculateProductCost = (productoId: string) => {
+        const receta = recetas.find((r) => r.productoId === productoId);
+        if (!receta) return 0;
+        
+        const insumosCost = receta.items.reduce((total, item) => {
+          const insumo = insumos.find((i) => i.id === item.insumoId);
+          return total + (item.cantidad * (insumo?.costoPromedio || 0));
+        }, 0);
+
+        return (receta.costoManoObra || 0) + insumosCost;
+      };
+
       let ventasHoy = 0;
       let ventasMes = 0;
       let ventasMesAnterior = 0;
+      let gastosMes = 0;
       let recentSales: Venta[] = [];
 
       if (user && (user.role === 'ADMIN' || user.role === 'CAJERO')) {
@@ -62,8 +78,18 @@ export default function Dashboard() {
           ventasHoy = ventasDiaData.reduce((total, venta) => total + (venta.estado === 'COMPLETA' ? venta.totalNIO : 0), 0);
           recentSales = ventasDiaData.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()).slice(0, 5);
 
-          ventasMes = monthRes.data.data.reduce((total, venta) => total + (venta.estado === 'COMPLETA' ? venta.totalNIO : 0), 0);
+          const ventasMesData = monthRes.data.data.filter(v => v.estado === 'COMPLETA');
+          ventasMes = ventasMesData.reduce((total, venta) => total + venta.totalNIO, 0);
+          
           ventasMesAnterior = prevMonthRes.data.data.reduce((total, venta) => total + (venta.estado === 'COMPLETA' ? venta.totalNIO : 0), 0);
+
+          // Calculate expenses based on COGS (Cost of Goods Sold)
+          gastosMes = ventasMesData.reduce((totalGastos, venta) => {
+            const costoVenta = venta.items.reduce((totalVenta, item) => {
+              return totalVenta + (calculateProductCost(item.productoId) * item.cantidad);
+            }, 0);
+            return totalGastos + costoVenta;
+          }, 0);
 
         } catch (error) {
           console.warn('No se pudo obtener ventas', error);
@@ -75,6 +101,7 @@ export default function Dashboard() {
           ventasHoy,
           ventasMes,
           ventasMesAnterior,
+          gastosMes,
           insumosStockBajo,
           productosDisponibles,
         },
@@ -332,33 +359,75 @@ export default function Dashboard() {
             ))}
           </div>
           
-          {/* Mini Promo / Status Card */}
-          <div className="mt-6 relative overflow-hidden rounded-2xl bg-slate-900 p-6 text-white shadow-lg">
-            <div className="absolute right-0 top-0 -mt-4 -mr-4 h-24 w-24 rounded-full bg-white/10 blur-2xl" />
-            <div className="absolute bottom-0 left-0 -mb-4 -ml-4 h-24 w-24 rounded-full bg-indigo-500/20 blur-2xl" />
+          {/* Financial Summary */}
+          <div className="mt-6 space-y-4">
+            <h2 className="text-lg font-semibold text-slate-900 px-1">Resumen Financiero</h2>
             
-            <div className="relative">
-              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-white/10 backdrop-blur-sm">
-                <TrendingUp className="h-5 w-5 text-white" />
-              </div>
-              <h3 className="text-lg font-semibold">Ventas del Mes</h3>
-              <div className="mt-2 flex items-baseline gap-2">
-                <span className="text-2xl font-bold">{stats?.ventasMes ? formatCurrency(stats.ventasMes) : 'C$0.00'}</span>
-              </div>
-              <p className="mt-1 text-sm text-slate-300 capitalize">
-                Total acumulado en {format(new Date(), 'MMMM', { locale: es })}
-              </p>
+            {/* Ingresos Card */}
+            <div className="relative overflow-hidden rounded-2xl bg-slate-900 p-6 text-white shadow-lg transition-transform hover:scale-[1.02]">
+              <div className="absolute right-0 top-0 -mt-4 -mr-4 h-24 w-24 rounded-full bg-white/10 blur-2xl" />
+              <div className="absolute bottom-0 left-0 -mb-4 -ml-4 h-24 w-24 rounded-full bg-indigo-500/20 blur-2xl" />
               
-              <div className="mt-4">
-                <div className="flex justify-between text-xs text-slate-400 mb-1">
-                  <span>Vs. Mes Anterior ({stats?.ventasMesAnterior ? formatCurrency(stats.ventasMesAnterior) : 'C$0.00'})</span>
-                  <span>{stats?.ventasMesAnterior ? Math.round((stats.ventasMes / stats.ventasMesAnterior) * 100) : 0}%</span>
+              <div className="relative">
+                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-white/10 backdrop-blur-sm">
+                  <TrendingUp className="h-5 w-5 text-emerald-400" />
                 </div>
-                <div className="h-1.5 w-full rounded-full bg-white/10">
-                  <div 
-                    className="h-1.5 rounded-full bg-gradient-to-r from-indigo-400 to-violet-400 transition-all duration-1000" 
-                    style={{ width: `${Math.min(((stats?.ventasMes || 0) / (stats?.ventasMesAnterior || 1)) * 100, 100)}%` }}
-                  />
+                <h3 className="text-lg font-semibold text-slate-100">Ingresos</h3>
+                <div className="mt-2 flex items-baseline gap-2">
+                  <span className="text-2xl font-bold text-white">{stats?.ventasMes ? formatCurrency(stats.ventasMes) : 'C$0.00'}</span>
+                </div>
+                <p className="mt-1 text-sm text-slate-400 capitalize">
+                  Acumulado en {format(new Date(), 'MMMM', { locale: es })}
+                </p>
+                
+                <div className="mt-4">
+                  <div className="flex justify-between text-xs text-slate-400 mb-1">
+                    <span>Vs. Mes Anterior</span>
+                    <span className={stats?.ventasMes && stats?.ventasMesAnterior && stats.ventasMes >= stats.ventasMesAnterior ? 'text-emerald-400' : 'text-slate-400'}>
+                      {stats?.ventasMesAnterior ? Math.round((stats.ventasMes / stats.ventasMesAnterior) * 100) : 0}%
+                    </span>
+                  </div>
+                  <div className="h-1.5 w-full rounded-full bg-white/10">
+                    <div 
+                      className="h-1.5 rounded-full bg-gradient-to-r from-emerald-400 to-teal-400 transition-all duration-1000" 
+                      style={{ width: `${Math.min(((stats?.ventasMes || 0) / (stats?.ventasMesAnterior || 1)) * 100, 100)}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+
+
+            {/* Gastos Card */}
+            <div className="relative overflow-hidden rounded-2xl bg-white border border-slate-200 p-6 shadow-sm transition-transform hover:scale-[1.02]">
+              <div className="relative">
+                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-red-50">
+                  <TrendingUp className="h-5 w-5 text-red-500 rotate-180" />
+                </div>
+                <h3 className="text-lg font-semibold text-slate-900">Gastos</h3>
+                <div className="mt-2 flex items-baseline gap-2">
+                  <span className="text-2xl font-bold text-slate-900">{stats?.gastosMes ? formatCurrency(stats.gastosMes) : 'C$0.00'}</span>
+                </div>
+                <p className="mt-1 text-sm text-slate-500 capitalize">
+                  Acumulado en {format(new Date(), 'MMMM', { locale: es })}
+                </p>
+                
+                <div className="mt-4">
+                  <div className="flex justify-between text-xs text-slate-500 mb-1">
+                    <span>% de Ingresos</span>
+                    <span>
+                      {stats?.ventasMes && stats?.ventasMes > 0 
+                        ? Math.round(((stats.gastosMes || 0) / stats.ventasMes) * 100) 
+                        : 0}%
+                    </span>
+                  </div>
+                  <div className="h-1.5 w-full rounded-full bg-slate-100">
+                    <div 
+                      className="h-1.5 rounded-full bg-red-500 transition-all duration-1000" 
+                      style={{ width: `${stats?.ventasMes && stats?.ventasMes > 0 ? Math.min(((stats.gastosMes || 0) / stats.ventasMes) * 100, 100) : 0}%` }}
+                    />
+                  </div>
                 </div>
               </div>
             </div>

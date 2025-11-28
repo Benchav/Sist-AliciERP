@@ -107,6 +107,7 @@ export interface DashboardStats {
   ventasHoy: number;
   ventasMes: number;
   ventasMesAnterior: number;
+  gastosMes: number;
   insumosStockBajo: number;
   productosDisponibles: number;
 }

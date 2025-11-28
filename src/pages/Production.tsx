@@ -546,19 +546,40 @@ export default function Production() {
               </CardHeader>
               <CardContent className="p-6">
                 {recetas?.map((receta) => {
-                  const recipeProductName =
-                    productMap.get(receta.productoId)?.nombre ?? receta.producto?.nombre ?? 'Receta';
-                  const manoObra = receta.costoManoObra ?? null;
+                  const product = productMap.get(receta.productoId);
+                  const recipeProductName = product?.nombre ?? receta.producto?.nombre ?? 'Receta';
+                  const manoObra = receta.costoManoObra || 0;
+
+                  const costoInsumos = receta.items.reduce((total, item) => {
+                    const insumo = insumoMap.get(item.insumoId);
+                    return total + (item.cantidad * (insumo?.costoPromedio || 0));
+                  }, 0);
+
+                  const costoTotal = manoObra + costoInsumos;
+                  const precioVenta = product?.precioVenta || 0;
+                  const gananciaEstimada = precioVenta - costoTotal;
+                  const margenPorcentaje = precioVenta > 0 ? (gananciaEstimada / precioVenta) * 100 : 0;
+
                   return (
                     <div key={receta.id} className="mb-6 rounded-xl border border-slate-200 bg-slate-50/30 p-4 last:mb-0">
-                      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                      <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
                         <div>
                           <h3 className="text-lg font-semibold text-slate-900">{recipeProductName}</h3>
-                          {manoObra !== null ? (
-                            <p className="text-sm text-slate-500">
-                              Mano de obra: <span className="font-medium text-slate-700">{formatCurrency(manoObra)}</span>
+                          <div className="mt-1 space-y-1">
+                            <p className="text-sm text-slate-600">
+                              Costo Total: <span className="font-medium text-slate-900">{formatCurrency(costoTotal)}</span>
+                              <span className="text-xs text-slate-400 ml-1">
+                                ({formatCurrency(manoObra)} M.O. + {formatCurrency(costoInsumos)} Insumos)
+                              </span>
                             </p>
-                          ) : null}
+                            <div className="flex items-center gap-2 text-sm">
+                              <span className="text-slate-500">Precio Venta: {formatCurrency(precioVenta)}</span>
+                              <span className="text-slate-300">|</span>
+                              <span className={`font-medium ${gananciaEstimada >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                                Margen: {formatCurrency(gananciaEstimada)} ({Math.round(margenPorcentaje)}%)
+                              </span>
+                            </div>
+                          </div>
                         </div>
                         <div className="flex flex-wrap gap-2">
                           <Button size="sm" variant="outline" onClick={() => openRecipeDialog(receta)} className="bg-white hover:bg-slate-50">
