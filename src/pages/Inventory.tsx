@@ -1,6 +1,5 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -32,6 +31,13 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Plus, PenSquare, Trash2, Package, ShoppingCart } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/format';
@@ -41,6 +47,7 @@ import { useAuthStore } from '@/store/authStore';
 import { hasRole } from '@/lib/auth';
 import { PageHeading } from '@/components/PageHeading';
 import { createInsumo, deleteInsumo, fetchInsumos, updateInsumo, type InsumoPayload } from '@/lib/inventoryApi';
+import { inventoryService } from '@/services/inventory.service';
 
 export default function Inventory() {
   const { user } = useAuthStore();
@@ -66,6 +73,16 @@ export default function Inventory() {
     queryFn: fetchInsumos,
   });
 
+  const { data: providers, isLoading: isLoadingProviders } = useQuery({
+    queryKey: ['providers'],
+    queryFn: inventoryService.getProviders,
+  });
+
+  const providerMap = useMemo(() => {
+    if (!providers) return new Map<string, string>();
+    return new Map(providers.map((provider) => [provider.id, provider.nombre]));
+  }, [providers]);
+
   const resetInsumoForm = () => {
     setInsumoForm({ nombre: '', unidad: '', stock: '', costoPromedio: '', proveedorPrincipalId: '' });
     setEditingInsumo(null);
@@ -90,7 +107,7 @@ export default function Inventory() {
 
   const purchaseMutation = useMutation({
     mutationFn: async (request: PurchaseRequest) => {
-      await api.post('/inventory/purchase', request);
+      await inventoryService.registerPurchase(request);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['insumos'] });
@@ -264,6 +281,7 @@ export default function Inventory() {
                   <TableRow className="hover:bg-transparent border-b border-slate-100">
                     <TableHead className="h-10 text-xs font-medium uppercase tracking-wider text-slate-500 pl-6">Nombre</TableHead>
                     <TableHead className="h-10 text-xs font-medium uppercase tracking-wider text-slate-500">Unidad</TableHead>
+                    <TableHead className="h-10 text-xs font-medium uppercase tracking-wider text-slate-500">Proveedor</TableHead>
                     <TableHead className="h-10 text-xs font-medium uppercase tracking-wider text-slate-500">Stock</TableHead>
                     <TableHead className="h-10 text-xs font-medium uppercase tracking-wider text-slate-500">Costo Promedio</TableHead>
                     <TableHead className="h-10 text-xs font-medium uppercase tracking-wider text-slate-500">Estado</TableHead>
@@ -273,13 +291,13 @@ export default function Inventory() {
                 <TableBody>
                   {isLoading ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-slate-500">
+                      <TableCell colSpan={isAdmin ? 7 : 6} className="text-center py-8 text-slate-500">
                         Cargando insumos...
                       </TableCell>
                     </TableRow>
                   ) : insumos?.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-slate-500">
+                      <TableCell colSpan={isAdmin ? 7 : 6} className="text-center py-8 text-slate-500">
                         No hay insumos registrados
                       </TableCell>
                     </TableRow>
@@ -288,6 +306,9 @@ export default function Inventory() {
                       <TableRow key={insumo.id} className="hover:bg-slate-50/50 border-b border-slate-50 transition-colors">
                         <TableCell className="font-medium text-slate-900 pl-6">{insumo.nombre}</TableCell>
                         <TableCell className="text-slate-500">{insumo.unidad}</TableCell>
+                        <TableCell className="text-slate-500">
+                          {insumo.proveedorPrincipalId ? providerMap.get(insumo.proveedorPrincipalId) ?? '—' : '—'}
+                        </TableCell>
                         <TableCell className="font-medium text-slate-700">{insumo.stock.toFixed(2)}</TableCell>
                         <TableCell className="text-slate-500">{formatCurrency(insumo.costoPromedio)}</TableCell>
                         <TableCell>
@@ -310,11 +331,12 @@ export default function Inventory() {
                               </Button>
                               <Button
                                 size="sm"
-                                variant="ghost"
+                                variant="outline"
                                 onClick={() => openPurchaseDialog(insumo)}
-                                className="h-8 w-8 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
+                                className="h-8 gap-1 border-emerald-200 text-emerald-600 hover:bg-emerald-50"
                               >
                                 <ShoppingCart className="h-4 w-4" />
+                                Reponer
                               </Button>
                               <Button
                                 size="sm"
@@ -348,6 +370,9 @@ export default function Inventory() {
                       <div>
                         <p className="text-base font-semibold text-slate-900">{insumo.nombre}</p>
                         <p className="text-xs text-slate-500">Unidad: {insumo.unidad}</p>
+                        {insumo.proveedorPrincipalId && (
+                          <p className="text-xs text-slate-500">Proveedor: {providerMap.get(insumo.proveedorPrincipalId) ?? '—'}</p>
+                        )}
                       </div>
                       <Badge variant="outline" className={insumo.stock < 10 ? "bg-red-50 text-red-700 border-red-100" : "bg-emerald-50 text-emerald-700 border-emerald-100"}>
                         {insumo.stock < 10 ? 'Bajo' : 'Disponible'}
@@ -369,7 +394,7 @@ export default function Inventory() {
                           Editar
                         </Button>
                         <Button size="sm" variant="outline" className="flex-1 text-emerald-600 border-emerald-200 hover:bg-emerald-50" onClick={() => openPurchaseDialog(insumo)}>
-                          Compra
+                          Reponer
                         </Button>
                         <Button size="sm" variant="outline" className="flex-1 text-red-600 border-red-200 hover:bg-red-50" onClick={() => openDeleteDialog(insumo)}>
                           Eliminar
@@ -420,13 +445,26 @@ export default function Inventory() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="insumo-proveedor">Nombre del proveedor principal</Label>
-              <Input
-                id="insumo-proveedor"
-                value={insumoForm.proveedorPrincipalId}
-                onChange={(e) => setInsumoForm((prev) => ({ ...prev, proveedorPrincipalId: e.target.value }))}
-                placeholder="Ej. Molino Central"
-              />
+              <Label htmlFor="insumo-proveedor">Proveedor principal</Label>
+              <Select
+                value={insumoForm.proveedorPrincipalId || ''}
+                onValueChange={(value) =>
+                  setInsumoForm((prev) => ({ ...prev, proveedorPrincipalId: value }))
+                }
+                disabled={isLoadingProviders}
+              >
+                <SelectTrigger id="insumo-proveedor">
+                  <SelectValue placeholder={isLoadingProviders ? 'Cargando proveedores...' : 'Seleccione un proveedor'} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Sin proveedor</SelectItem>
+                  {(providers ?? []).map((provider) => (
+                    <SelectItem key={provider.id} value={provider.id}>
+                      {provider.nombre}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">

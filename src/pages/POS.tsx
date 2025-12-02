@@ -1,6 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -19,11 +18,13 @@ import { Search, ShoppingCart, Trash2, Plus, Minus, CreditCard } from 'lucide-re
 import { toast } from 'sonner';
 import { formatCurrency, amountToCents, calculateChange, calculateTotalPayment } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
-import type { Producto, CheckoutRequest } from '@/types';
+import type { Producto, SaleRequest } from '@/types';
 import { useAuthStore } from '@/store/authStore';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { PageHeading } from '@/components/PageHeading';
 import { PRODUCTION_PRODUCTS_QUERY_KEY } from '@/lib/queryKeys';
+import { productService } from '@/services/product.service';
+import { salesService } from '@/services/sales.service';
 
 interface CartItem {
   productId: string;
@@ -76,10 +77,7 @@ export default function POS() {
 
   const { data: productos } = useQuery({
     queryKey: PRODUCTION_PRODUCTS_QUERY_KEY,
-    queryFn: async () => {
-      const { data } = await api.get<{ data: Producto[] }>('/production/products');
-      return data.data;
-    },
+    queryFn: productService.getProducts,
   });
 
   const productMap = useMemo(() => {
@@ -105,11 +103,12 @@ export default function POS() {
   }, [config, fetchConfig]);
 
   const checkoutMutation = useMutation({
-    mutationFn: async (request: CheckoutRequest) => {
-      await api.post('/sales/checkout', request);
+    mutationFn: async (request: SaleRequest) => {
+      await salesService.createSale(request);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: PRODUCTION_PRODUCTS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
       toast.success('Venta procesada exitosamente');
       setCart([]);
       setCheckoutDialog(false);
@@ -288,7 +287,7 @@ export default function POS() {
       return;
     }
 
-    const pagos: CheckoutRequest['pagos'] = [];
+    const pagos: SaleRequest['pagos'] = [];
 
     if (nioPayment > 0) {
       pagos.push({ moneda: 'NIO', cantidad: amountToCents(nioPayment) });
@@ -309,7 +308,7 @@ export default function POS() {
       return;
     }
 
-    const request: CheckoutRequest = {
+    const request: SaleRequest = {
       items: cart.map((item) => ({
         productoId: item.productId,
         cantidad: item.cantidad,

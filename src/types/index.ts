@@ -31,6 +31,18 @@ export interface Insumo {
   updatedAt: string;
 }
 
+export interface Provider {
+  id: string;
+  nombre: string;
+  contacto?: string;
+  telefono?: string;
+  email?: string;
+  frecuencia?: string;
+  notas?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Producto {
   id: string;
   nombre: string;
@@ -91,6 +103,36 @@ export interface CheckoutRequest {
     productoId: string;
     cantidad: number;
   }>;
+  pagos: Pago[];
+}
+
+export interface CreateProviderDTO {
+  nombre: string;
+  contacto?: string;
+  telefono?: string;
+  email?: string;
+  frecuencia?: string;
+  notas?: string;
+}
+
+export type UpdateProviderDTO = Partial<CreateProviderDTO>;
+
+export interface CreateProductDTO {
+  nombre: string;
+  precioVenta: number;
+  stockDisponible: number;
+  categoria?: string;
+}
+
+export type UpdateProductDTO = Partial<CreateProductDTO>;
+
+export interface SaleItemInput {
+  productoId: string;
+  cantidad: number;
+}
+
+export interface SaleRequest {
+  items: SaleItemInput[];
   pagos: Pago[];
 }
 

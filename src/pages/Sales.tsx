@@ -30,6 +30,7 @@ import { hasRole } from '@/lib/auth';
 import { getApiErrorMessage } from '@/lib/errors';
 import { PageHeading } from '@/components/PageHeading';
 import type { DateRange } from 'react-day-picker';
+import { salesService } from '@/services/sales.service';
 
 export default function Sales() {
   const { user } = useAuthStore();
@@ -42,16 +43,7 @@ export default function Sales() {
 
   const { data: sales, isLoading } = useQuery({
     queryKey: ['sales', fromISO, toISO],
-    queryFn: async () => {
-      const params: Record<string, string> = {};
-      if (fromISO) params.from = fromISO;
-      if (toISO) params.to = toISO;
-
-      const { data } = await api.get<{ data: Venta[] }>('/sales', {
-        params: Object.keys(params).length ? params : undefined,
-      });
-      return data.data;
-    },
+    queryFn: () => salesService.getSales({ from: fromISO, to: toISO }),
   });
 
   const deleteMutation = useMutation({
