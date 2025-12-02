@@ -6,6 +6,8 @@ import axios, {
 } from 'axios';
 import { getApiErrorMessage, type ApiErrorPayload } from './errors';
 
+// Default to the deployed API even during local development so the app always targets
+// the production backend unless the developer explicitly overrides it via VITE_API_URL.
 const DEFAULT_API_URL = 'https://sist-alici.vercel.app';
 
 const sanitizeBaseUrl = (url: string): string => url.replace(/\/$/, '');
@@ -17,6 +19,7 @@ const API_BASE_URL = sanitizeBaseUrl(
 );
 
 export const AUTH_TOKEN_STORAGE_KEY = 'sist-alici-token';
+export const AUTH_USER_STORAGE_KEY = 'sist-alici-user';
 
 export const api: AxiosInstance = axios.create({
   baseURL: `${API_BASE_URL}/api`,
@@ -45,6 +48,7 @@ api.interceptors.request.use(attachAuthToken);
 
 const handleUnauthorized = () => {
   localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+  localStorage.removeItem(AUTH_USER_STORAGE_KEY);
   if (window.location.pathname !== '/login') {
     window.location.replace('/login');
   }

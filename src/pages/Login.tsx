@@ -18,15 +18,20 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
-  const { setAuth, user } = useAuthStore();
+  const { setAuth, user, fetchConfig } = useAuthStore();
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: { username: string; password: string }) => {
       const { data } = await api.post<AuthResponse>('/auth/login', credentials);
       return data;
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       setAuth(data.token, data.user);
+      try {
+        await fetchConfig();
+      } catch (error) {
+        toast.error(getApiErrorMessage(error, 'No se pudo cargar la configuración del sistema'));
+      }
       toast.success('Inicio de sesión exitoso');
       navigate('/');
     },

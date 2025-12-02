@@ -40,6 +40,7 @@ import type { Insumo, PurchaseRequest } from '@/types';
 import { useAuthStore } from '@/store/authStore';
 import { hasRole } from '@/lib/auth';
 import { PageHeading } from '@/components/PageHeading';
+import { createInsumo, deleteInsumo, fetchInsumos, updateInsumo, type InsumoPayload } from '@/lib/inventoryApi';
 
 export default function Inventory() {
   const { user } = useAuthStore();
@@ -55,20 +56,18 @@ export default function Inventory() {
     unidad: '',
     stock: '',
     costoPromedio: '',
+    proveedorPrincipalId: '',
   });
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [insumoToDelete, setInsumoToDelete] = useState<Insumo | null>(null);
 
   const { data: insumos, isLoading } = useQuery({
     queryKey: ['insumos'],
-    queryFn: async () => {
-      const { data } = await api.get<{ data: Insumo[] }>('/inventory');
-      return data.data;
-    },
+    queryFn: fetchInsumos,
   });
 
   const resetInsumoForm = () => {
-    setInsumoForm({ nombre: '', unidad: '', stock: '', costoPromedio: '' });
+    setInsumoForm({ nombre: '', unidad: '', stock: '', costoPromedio: '', proveedorPrincipalId: '' });
     setEditingInsumo(null);
   };
 
@@ -84,6 +83,7 @@ export default function Inventory() {
       unidad: insumo.unidad,
       stock: insumo.stock.toString(),
       costoPromedio: insumo.costoPromedio.toString(),
+      proveedorPrincipalId: insumo.proveedorPrincipalId ?? '',
     });
     setInsumoDialogOpen(true);
   };
@@ -105,16 +105,9 @@ export default function Inventory() {
     },
   });
 
-  type InsumoPayload = {
-    nombre: string;
-    unidad: string;
-    stock: number;
-    costoPromedio: number;
-  };
-
   const createInsumoMutation = useMutation({
     mutationFn: async (payload: InsumoPayload) => {
-      await api.post('/inventory', payload);
+      await createInsumo(payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['insumos'] });
@@ -129,7 +122,7 @@ export default function Inventory() {
 
   const updateInsumoMutation = useMutation({
     mutationFn: async ({ id, payload }: { id: string; payload: InsumoPayload }) => {
-      await api.put(`/inventory/${id}`, payload);
+      await updateInsumo(id, payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['insumos'] });
@@ -144,7 +137,7 @@ export default function Inventory() {
 
   const deleteInsumoMutation = useMutation({
     mutationFn: async (id: string) => {
-      await api.delete(`/inventory/${id}`);
+      await deleteInsumo(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['insumos'] });
@@ -191,6 +184,7 @@ export default function Inventory() {
   const handleSaveInsumo = () => {
     const stockValue = parseFloat(insumoForm.stock);
     const costValue = parseFloat(insumoForm.costoPromedio);
+    const proveedorValue = insumoForm.proveedorPrincipalId.trim();
 
     if (!insumoForm.nombre.trim() || !insumoForm.unidad.trim()) {
       toast.error('Nombre y unidad son obligatorios');
@@ -212,6 +206,7 @@ export default function Inventory() {
       unidad: insumoForm.unidad.trim(),
       stock: stockValue,
       costoPromedio: costValue,
+      proveedorPrincipalId: proveedorValue || undefined,
     };
 
     if (editingInsumo) {
@@ -422,6 +417,15 @@ export default function Inventory() {
                 value={insumoForm.unidad}
                 onChange={(e) => setInsumoForm((prev) => ({ ...prev, unidad: e.target.value }))}
                 placeholder="kg, lt, caja..."
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="insumo-proveedor">Nombre del proveedor principal</Label>
+              <Input
+                id="insumo-proveedor"
+                value={insumoForm.proveedorPrincipalId}
+                onChange={(e) => setInsumoForm((prev) => ({ ...prev, proveedorPrincipalId: e.target.value }))}
+                placeholder="Ej. Molino Central"
               />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">

@@ -23,7 +23,7 @@ const App = () => {
   const { initAuth } = useAuthStore();
 
   useEffect(() => {
-    initAuth();
+    void initAuth();
   }, [initAuth]);
 
   return (

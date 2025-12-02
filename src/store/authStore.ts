@@ -1,9 +1,8 @@
 import { create } from 'zustand';
-import type { User, AuthUserPayload } from '@/types';
+import type { User, AuthUserPayload, Config } from '@/types';
 import { decodeToken } from '@/lib/auth';
-import { AUTH_TOKEN_STORAGE_KEY } from '@/lib/api';
-
-const AUTH_USER_STORAGE_KEY = 'sist-alici-user';
+import { AUTH_TOKEN_STORAGE_KEY, AUTH_USER_STORAGE_KEY } from '@/lib/api';
+import { fetchSystemConfig } from '@/lib/configApi';
 
 type UserLike = AuthUserPayload | User;
 
@@ -16,20 +15,27 @@ const normalizeUser = (input?: UserLike | null): User | null => {
     id: input.id,
     username: input.username,
     role,
+    nombre: 'nombre' in input ? input.nombre : undefined,
   };
 };
 
 interface AuthState {
   user: User | null;
   token: string | null;
+  config: Config | null;
+  isConfigLoading: boolean;
   setAuth: (token: string, user?: UserLike | null) => void;
   logout: () => void;
-  initAuth: () => void;
+  initAuth: () => Promise<void>;
+  fetchConfig: () => Promise<Config | null>;
+  setConfig: (config: Config | null) => void;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   token: null,
+  config: null,
+  isConfigLoading: false,
   setAuth: (token: string, userParam?: UserLike | null) => {
     const normalizedUser = normalizeUser(userParam) ?? decodeToken(token);
 
@@ -42,36 +48,57 @@ export const useAuthStore = create<AuthState>((set) => ({
 
     localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
     localStorage.removeItem(AUTH_USER_STORAGE_KEY);
-    set({ token: null, user: null });
+    set({ token: null, user: null, config: null });
   },
   logout: () => {
     localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
     localStorage.removeItem(AUTH_USER_STORAGE_KEY);
-    set({ token: null, user: null });
+    set({ token: null, user: null, config: null });
   },
-  initAuth: () => {
+  initAuth: async () => {
     const token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
-    if (token) {
-      let user: User | null = null;
-      const storedUser = localStorage.getItem(AUTH_USER_STORAGE_KEY);
-      if (storedUser) {
-        try {
-          user = normalizeUser(JSON.parse(storedUser) as UserLike);
-        } catch (error) {
-          user = null;
-        }
-      }
+    if (!token) {
+      set({ token: null, user: null, config: null });
+      return;
+    }
 
-      if (!user) {
-        user = decodeToken(token);
-      }
-
-      if (user) {
-        set({ token, user });
-      } else {
-        localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
-        localStorage.removeItem(AUTH_USER_STORAGE_KEY);
+    let user: User | null = null;
+    const storedUser = localStorage.getItem(AUTH_USER_STORAGE_KEY);
+    if (storedUser) {
+      try {
+        user = normalizeUser(JSON.parse(storedUser) as UserLike);
+      } catch {
+        user = null;
       }
     }
+
+    if (!user) {
+      user = decodeToken(token);
+    }
+
+    if (user) {
+      set({ token, user });
+      try {
+        await get().fetchConfig();
+      } catch {
+        // ignore config fetch errors during bootstrap
+      }
+    } else {
+      localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+      localStorage.removeItem(AUTH_USER_STORAGE_KEY);
+      set({ token: null, user: null, config: null });
+    }
   },
+  fetchConfig: async () => {
+    set({ isConfigLoading: true });
+    try {
+      const config = await fetchSystemConfig();
+      set({ config, isConfigLoading: false });
+      return config;
+    } catch (error) {
+      set({ isConfigLoading: false });
+      throw error;
+    }
+  },
+  setConfig: (config: Config | null) => set({ config }),
 }));

@@ -19,10 +19,11 @@ import { Search, ShoppingCart, Trash2, Plus, Minus, CreditCard } from 'lucide-re
 import { toast } from 'sonner';
 import { formatCurrency, amountToCents, calculateChange, calculateTotalPayment } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
-import type { Producto, Config, CheckoutRequest } from '@/types';
+import type { Producto, CheckoutRequest } from '@/types';
 import { useAuthStore } from '@/store/authStore';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { PageHeading } from '@/components/PageHeading';
+import { PRODUCTION_PRODUCTS_QUERY_KEY } from '@/lib/queryKeys';
 
 interface CartItem {
   productId: string;
@@ -31,7 +32,7 @@ interface CartItem {
 
 export default function POS() {
   const queryClient = useQueryClient();
-  const { user } = useAuthStore();
+  const { user, config, fetchConfig } = useAuthStore();
   const [search, setSearch] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [checkoutDialog, setCheckoutDialog] = useState(false);
@@ -74,7 +75,7 @@ export default function POS() {
   }, [cart.length]);
 
   const { data: productos } = useQuery({
-    queryKey: ['productos'],
+    queryKey: PRODUCTION_PRODUCTS_QUERY_KEY,
     queryFn: async () => {
       const { data } = await api.get<{ data: Producto[] }>('/production/products');
       return data.data;
@@ -95,20 +96,20 @@ export default function POS() {
     );
   }, [productMap]);
 
-  const { data: config } = useQuery({
-    queryKey: ['config'],
-    queryFn: async () => {
-      const { data } = await api.get<{ data: Config }>('/config');
-      return data.data;
-    },
-  });
+  useEffect(() => {
+    if (!config) {
+      fetchConfig().catch((error) => {
+        toast.error(getApiErrorMessage(error, 'No se pudo cargar la configuración del sistema'));
+      });
+    }
+  }, [config, fetchConfig]);
 
   const checkoutMutation = useMutation({
     mutationFn: async (request: CheckoutRequest) => {
       await api.post('/sales/checkout', request);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['productos'] });
+      queryClient.invalidateQueries({ queryKey: PRODUCTION_PRODUCTS_QUERY_KEY });
       toast.success('Venta procesada exitosamente');
       setCart([]);
       setCheckoutDialog(false);

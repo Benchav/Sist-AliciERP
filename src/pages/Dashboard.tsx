@@ -10,6 +10,7 @@ import { useAuthStore } from '@/store/authStore';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
+import { fetchInsumos } from '@/lib/inventoryApi';
 
 export default function Dashboard() {
   const { user } = useAuthStore();
@@ -18,14 +19,14 @@ export default function Dashboard() {
   const { data: dashboardData, isLoading } = useQuery({
     queryKey: ['dashboard-data', user?.role],
     queryFn: async () => {
-      const [productosRes, insumosRes, recetasRes] = await Promise.all([
+      const [productosRes, insumosData, recetasRes] = await Promise.all([
         api.get<{ data: Producto[] }>('/production/products'),
-        api.get<{ data: Insumo[] }>('/inventory'),
+        fetchInsumos(),
         api.get<{ data: Receta[] }>('/production/recipes'),
       ]);
 
       const productos = productosRes.data.data;
-      const insumos = insumosRes.data.data;
+      const insumos = insumosData;
       const recetas = recetasRes.data.data;
 
       const productosDisponibles = productos.filter((producto) => producto.stockDisponible > 0).length;

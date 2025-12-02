@@ -1,35 +1,40 @@
-import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/lib/api';
+import { useEffect, useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import type { Config } from '@/types';
 import { getApiErrorMessage } from '@/lib/errors';
 import { PageHeading } from '@/components/PageHeading';
 import { Coins, Save } from 'lucide-react';
+import { useAuthStore } from '@/store/authStore';
+import { updateSystemConfig } from '@/lib/configApi';
 
 export default function Settings() {
-  const queryClient = useQueryClient();
   const [exchangeRate, setExchangeRate] = useState('');
+  const { config, fetchConfig, setConfig, isConfigLoading } = useAuthStore();
 
-  const { data: config } = useQuery({
-    queryKey: ['config'],
-    queryFn: async () => {
-      const { data } = await api.get<{ data: Config }>('/config');
-      setExchangeRate(data.data.tasaCambio.toString());
-      return data.data;
-    },
-  });
+  useEffect(() => {
+    if (!config) {
+      fetchConfig().catch((error) => {
+        toast.error(getApiErrorMessage(error, 'No se pudo cargar la configuración del sistema'));
+      });
+    }
+  }, [config, fetchConfig]);
+
+  useEffect(() => {
+    if (config) {
+      setExchangeRate(config.tasaCambio.toString());
+    }
+  }, [config]);
 
   const updateMutation = useMutation({
     mutationFn: async (tasaCambio: number) => {
-      await api.put('/config', { tasaCambio });
+      await updateSystemConfig(tasaCambio);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['config'] });
+      setConfig({ tasaCambio: parseFloat(exchangeRate) });
       toast.success('Configuración actualizada exitosamente');
     },
     onError: (error: unknown) => {

@@ -26,6 +26,7 @@ export interface Insumo {
   unidad: string;
   stock: number;
   costoPromedio: number;
+  proveedorPrincipalId?: string;
   createdAt: string;
   updatedAt: string;
 }

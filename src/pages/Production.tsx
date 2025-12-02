@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -48,6 +48,13 @@ import {
 } from '@/components/ui/alert-dialog';
 import { PageHeading } from '@/components/PageHeading';
 import { Badge } from '@/components/ui/badge';
+import { PRODUCTION_PRODUCTS_QUERY_KEY } from '@/lib/queryKeys';
+import { fetchInsumos } from '@/lib/inventoryApi';
+import {
+  DEFAULT_PRODUCT_CATEGORY,
+  getAvailableProductCategories,
+  getProductCategory,
+} from '@/lib/productCategories';
 
 export default function Production() {
   const queryClient = useQueryClient();
@@ -76,9 +83,10 @@ export default function Production() {
   ]);
   const [recipeDeleteDialogOpen, setRecipeDeleteDialogOpen] = useState(false);
   const [recipeToDelete, setRecipeToDelete] = useState<Receta | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState('TODAS');
 
   const { data: productos } = useQuery({
-    queryKey: ['productos'],
+    queryKey: PRODUCTION_PRODUCTS_QUERY_KEY,
     queryFn: async () => {
       const { data } = await api.get<{ data: Producto[] }>('/production/products');
       return data.data;
@@ -95,10 +103,7 @@ export default function Production() {
 
   const { data: insumos } = useQuery({
     queryKey: ['insumos'],
-    queryFn: async () => {
-      const { data } = await api.get<{ data: Insumo[] }>('/inventory');
-      return data.data;
-    },
+    queryFn: fetchInsumos,
   });
 
   const insumoMap = useMemo(() => {
@@ -110,6 +115,41 @@ export default function Production() {
     if (!productos) return new Map<string, Producto>();
     return new Map(productos.map((producto) => [producto.id, producto]));
   }, [productos]);
+
+  const productCategoryMap = useMemo(() => {
+    if (!productos) return new Map<string, string>();
+    return new Map(productos.map((producto) => [producto.id, getProductCategory(producto)]));
+  }, [productos]);
+
+  const categoryFilters = useMemo(() => {
+    const categories = getAvailableProductCategories(productos ?? []);
+    return categories.length ? ['TODAS', ...categories] : ['TODAS'];
+  }, [productos]);
+
+  useEffect(() => {
+    if (categoryFilter !== 'TODAS' && !categoryFilters.includes(categoryFilter)) {
+      setCategoryFilter('TODAS');
+    }
+  }, [categoryFilter, categoryFilters]);
+
+  const getCategoryForProductId = (productoId: string) =>
+    productCategoryMap.get(productoId) ?? DEFAULT_PRODUCT_CATEGORY;
+
+  const filteredRecetas = useMemo(() => {
+    if (!recetas) return [];
+    return recetas.filter((receta) => {
+      if (categoryFilter === 'TODAS') return true;
+      return getCategoryForProductId(receta.productoId) === categoryFilter;
+    });
+  }, [recetas, categoryFilter, productCategoryMap]);
+
+  const filteredProductos = useMemo(() => {
+    if (!productos) return [];
+    return productos.filter((producto) => {
+      if (categoryFilter === 'TODAS') return true;
+      return getCategoryForProductId(producto.id) === categoryFilter;
+    });
+  }, [productos, categoryFilter, productCategoryMap]);
 
   const getRecetaLabel = (receta: Receta): string => {
     const productName = productMap.get(receta.productoId)?.nombre ?? receta.producto?.nombre;
@@ -207,7 +247,7 @@ export default function Production() {
       await api.post('/production', request);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['productos'] });
+      queryClient.invalidateQueries({ queryKey: PRODUCTION_PRODUCTS_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: ['insumos'] });
       toast.success('Producción registrada exitosamente');
       setProductionDialog(false);
@@ -310,7 +350,7 @@ export default function Production() {
       await api.post('/production/products', payload);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['productos'] });
+      queryClient.invalidateQueries({ queryKey: PRODUCTION_PRODUCTS_QUERY_KEY });
       toast.success('Producto creado correctamente');
       setProductDialogOpen(false);
       resetProductForm();
@@ -325,7 +365,7 @@ export default function Production() {
       await api.put(`/production/products/${id}`, payload);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['productos'] });
+      queryClient.invalidateQueries({ queryKey: PRODUCTION_PRODUCTS_QUERY_KEY });
       toast.success('Producto actualizado correctamente');
       setProductDialogOpen(false);
       resetProductForm();
@@ -340,7 +380,7 @@ export default function Production() {
       await api.delete(`/production/products/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['productos'] });
+      queryClient.invalidateQueries({ queryKey: PRODUCTION_PRODUCTS_QUERY_KEY });
       toast.success('Producto eliminado correctamente');
       setProductDeleteDialogOpen(false);
       setProductToDelete(null);
@@ -519,6 +559,22 @@ export default function Production() {
           }
         />
 
+        {categoryFilters.length > 1 && (
+          <div className="flex flex-wrap gap-2">
+            {categoryFilters.map((category) => (
+              <Button
+                key={category}
+                variant={categoryFilter === category ? 'default' : 'outline'}
+                size="sm"
+                className={categoryFilter === category ? 'bg-indigo-600 text-white hover:bg-indigo-700' : 'border-slate-200 text-slate-600'}
+                onClick={() => setCategoryFilter(category)}
+              >
+                {category === 'TODAS' ? 'Todas las categorías' : category}
+              </Button>
+            ))}
+          </div>
+        )}
+
         <Tabs defaultValue="recipes" className="space-y-6">
           <TabsList className="bg-slate-100 p-1 rounded-xl w-full sm:w-auto flex-wrap justify-start h-auto">
             <TabsTrigger 
@@ -545,7 +601,7 @@ export default function Production() {
                 </Button>
               </CardHeader>
               <CardContent className="p-6">
-                {recetas?.map((receta) => {
+                {filteredRecetas.map((receta) => {
                   const product = productMap.get(receta.productoId);
                   const recipeProductName = product?.nombre ?? receta.producto?.nombre ?? 'Receta';
                   const manoObra = receta.costoManoObra || 0;
@@ -661,58 +717,61 @@ export default function Production() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {productos?.map((producto) => (
-                          <TableRow key={producto.id} className="hover:bg-slate-50/50 border-b border-slate-50 transition-colors">
-                            <TableCell className="font-medium text-slate-900">{producto.nombre}</TableCell>
-                            <TableCell className="text-slate-500">{producto.categoria ?? '—'}</TableCell>
+                        {filteredProductos.map((producto) => {
+                          const categoryLabel = getCategoryForProductId(producto.id);
+                          return (
+                            <TableRow key={producto.id} className="hover:bg-slate-50/50 border-b border-slate-50 transition-colors">
+                              <TableCell className="font-medium text-slate-900">{producto.nombre}</TableCell>
+                              <TableCell className="text-slate-500">{categoryLabel}</TableCell>
                             <TableCell className="font-medium text-slate-900">{formatCurrency(producto.precioVenta)}</TableCell>
                             <TableCell>
                               <Badge variant="outline" className={producto.stockDisponible > 0 ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-red-50 text-red-700 border-red-100"}>
                                 {producto.stockDisponible}
                               </Badge>
                             </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex justify-end gap-2">
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => openProductDialog(producto)}
-                                  className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50"
-                                >
-                                  <PenSquare className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50"
-                                  onClick={() => {
-                                    setProductToDelete(producto);
-                                    setProductDeleteDialogOpen(true);
-                                  }}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                              <TableCell className="text-right">
+                                <div className="flex justify-end gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => openProductDialog(producto)}
+                                    className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50"
+                                  >
+                                    <PenSquare className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                                    onClick={() => {
+                                      setProductToDelete(producto);
+                                      setProductDeleteDialogOpen(true);
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
                       </TableBody>
                     </Table>
                   </div>
                 </div>
 
                 <div className="space-y-3 p-4 md:hidden">
-                  {productos?.length ? (
-                    productos.map((producto) => (
-                      <Card key={producto.id} className="overflow-hidden border border-slate-200 shadow-sm">
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between gap-3 mb-2">
-                            <div>
-                              <p className="text-base font-semibold text-slate-900">{producto.nombre}</p>
-                              <p className="text-xs text-slate-500">
-                                {producto.categoria ?? 'Sin categoría'}
-                              </p>
-                            </div>
+                  {filteredProductos.length ? (
+                    filteredProductos.map((producto) => {
+                      const categoryLabel = getCategoryForProductId(producto.id);
+                      return (
+                        <Card key={producto.id} className="overflow-hidden border border-slate-200 shadow-sm">
+                          <CardContent className="p-4">
+                            <div className="flex items-start justify-between gap-3 mb-2">
+                              <div>
+                                <p className="text-base font-semibold text-slate-900">{producto.nombre}</p>
+                                <p className="text-xs text-slate-500">{categoryLabel}</p>
+                              </div>
                             <p className="text-sm font-bold text-indigo-600">
                               {formatCurrency(producto.precioVenta)}
                             </p>
@@ -740,7 +799,8 @@ export default function Production() {
                           </div>
                         </CardContent>
                       </Card>
-                    ))
+                    );
+                    })
                   ) : (
                     <p className="text-center text-sm text-slate-500">Sin productos registrados</p>
                   )}

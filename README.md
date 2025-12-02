@@ -45,10 +45,11 @@ npm run dev
 
 - Todas las llamadas usan el cliente `src/lib/api.ts`, que adjunta el header `Authorization` cuando existe token.
 - Endpoints cubiertos:
-	- `/inventory` para CRUD de insumos y compras.
-	- `/production/products`, `/production/recipes` y `/production` para productos, recetas y registros de producción.
-	- `/sales` para historial y `/sales/checkout` para el POS.
-	- `/config` para la tasa de cambio.
+	- `/inventory` para CRUD de insumos y `/inventory/purchase` para registrar compras de materia prima.
+	- `/production/products`, `/production/recipes` y `/production` (POST) para catálogo, recetas y registro de lotes.
+	- `/sales` para el historial, `/sales/checkout` para el POS y `/sales/report/excel` para exportes.
+	- `/config` para leer y actualizar la tasa de cambio.
+- El cliente apunta por defecto a `https://sist-alici.vercel.app/api`, incluso en desarrollo. Para usar otro backend (por ejemplo el local `http://localhost:3000`), crea un `.env` con `VITE_API_URL` apuntando al host deseado.
 - El formulario de recetas incluye un popover de conversión manual que permite ingresar ingredientes en otras unidades y convertirlos a la unidad base almacenada en inventario.
 
 ## Estructura destacada
