@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,30 +29,48 @@ import { toast } from 'sonner';
 import { getApiErrorMessage } from '@/lib/errors';
 import { formatCurrency } from '@/lib/format';
 import { productService } from '@/services/product.service';
-import type { CreateProductDTO, Producto, UpdateProductDTO } from '@/types';
+import type { Categoria, CreateProductDTO, Producto, UpdateProductDTO } from '@/types';
 import { Plus, PenSquare, Trash2, PackageSearch } from 'lucide-react';
-import { PRODUCTION_PRODUCTS_QUERY_KEY } from '@/lib/queryKeys';
+import { INVENTORY_CATEGORIES_QUERY_KEY, PRODUCTION_PRODUCTS_QUERY_KEY } from '@/lib/queryKeys';
+import { categoryService } from '@/services/category.service';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface ProductFormState {
   nombre: string;
-  categoria: string;
+  categoriaId: string;
   precioVenta: string;
+  precioUnitario: string;
   stockDisponible: string;
 }
 
 const DEFAULT_PRODUCT_FORM: ProductFormState = {
   nombre: '',
-  categoria: '',
+  categoriaId: '',
   precioVenta: '',
+  precioUnitario: '',
   stockDisponible: '',
 };
 
+const NO_CATEGORY_VALUE = '__NO_CATEGORY__';
+
 const sanitizeProductPayload = (form: ProductFormState): CreateProductDTO | null => {
   const price = parseFloat(form.precioVenta);
+  const unitCost = parseFloat(form.precioUnitario);
   const stock = parseFloat(form.stockDisponible);
 
   if (Number.isNaN(price) || price <= 0) {
     toast.error('Ingrese un precio de venta válido');
+    return null;
+  }
+
+  if (Number.isNaN(unitCost) || unitCost < 0) {
+    toast.error('Ingrese un costo unitario válido');
     return null;
   }
 
@@ -69,11 +87,12 @@ const sanitizeProductPayload = (form: ProductFormState): CreateProductDTO | null
   const payload: CreateProductDTO = {
     nombre: form.nombre.trim(),
     precioVenta: price,
+    precioUnitario: unitCost,
     stockDisponible: stock,
   };
 
-  if (form.categoria.trim()) {
-    payload.categoria = form.categoria.trim();
+  if (form.categoriaId.trim()) {
+    payload.categoriaId = form.categoriaId.trim();
   }
 
   return payload;
@@ -87,10 +106,44 @@ export default function Products() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Producto | null>(null);
 
+  const { data: categories, isLoading: isLoadingCategories } = useQuery({
+    queryKey: INVENTORY_CATEGORIES_QUERY_KEY,
+    queryFn: categoryService.getCategories,
+  });
+
   const { data: products, isLoading, isError, refetch } = useQuery({
     queryKey: ['products'],
     queryFn: productService.getProducts,
   });
+
+  const categoriesMap = useMemo(() => {
+    if (!categories) return new Map<string, Categoria>();
+    return new Map(categories.map((category) => [category.id, category]));
+  }, [categories]);
+
+  const getProductCategory = (producto: Producto): Categoria | undefined => {
+    if (!producto.categoriaId) return undefined;
+    return categoriesMap.get(producto.categoriaId);
+  };
+
+  const formatOriginLabel = (category?: Categoria): string => {
+    if (!category) return 'Sin origen asignado';
+    return category.tipo === 'PRODUCCION' ? 'Producción' : 'Reventa';
+  };
+
+  const getOriginBadgeClasses = (category?: Categoria): string => {
+    if (!category) return 'bg-slate-50 text-slate-600 border-slate-200';
+    return category.tipo === 'PRODUCCION'
+      ? 'bg-amber-50 text-amber-700 border-amber-100'
+      : 'bg-emerald-50 text-emerald-700 border-emerald-100';
+  };
+
+  const resolveUnitCost = (producto: Producto): number | undefined => {
+    if (typeof producto.precioUnitario === 'number') {
+      return producto.precioUnitario;
+    }
+    return producto.costoUnitario;
+  };
 
   const createMutation = useMutation({
     mutationFn: async (payload: CreateProductDTO) => productService.createProduct(payload),
@@ -141,10 +194,12 @@ export default function Products() {
 
   const openEditDialog = (product: Producto) => {
     setEditingProduct(product);
+    const unitCost = resolveUnitCost(product);
     setProductForm({
       nombre: product.nombre,
-      categoria: product.categoria ?? '',
+      categoriaId: product.categoriaId ?? '',
       precioVenta: product.precioVenta.toString(),
+      precioUnitario: typeof unitCost === 'number' ? unitCost.toString() : '',
       stockDisponible: product.stockDisponible.toString(),
     });
     setDialogOpen(true);
@@ -213,8 +268,9 @@ export default function Products() {
                 <TableHeader className="bg-slate-50">
                   <TableRow className="hover:bg-slate-50">
                     <TableHead className="pl-6">Nombre</TableHead>
-                    <TableHead>Categoría</TableHead>
+                    <TableHead>Categoría / Origen</TableHead>
                     <TableHead>Precio Venta</TableHead>
+                    <TableHead>Costo Unitario</TableHead>
                     <TableHead>Stock Disponible</TableHead>
                     <TableHead className="text-right pr-6">Acciones</TableHead>
                   </TableRow>
@@ -224,16 +280,34 @@ export default function Products() {
                     <TableRow key={product.id} className="hover:bg-slate-50/60">
                       <TableCell className="pl-6 font-medium text-slate-900">{product.nombre}</TableCell>
                       <TableCell>
-                        {product.categoria ? (
-                          <Badge variant="secondary" className="bg-slate-100 text-slate-700">
-                            {product.categoria}
-                          </Badge>
-                        ) : (
-                          <span className="text-slate-400">Sin categoría</span>
-                        )}
+                        {(() => {
+                          const category = getProductCategory(product);
+                          if (!category && !product.categoria) {
+                            return <span className="text-slate-400 text-sm">Sin categoría</span>;
+                          }
+                          return (
+                            <div className="flex flex-col gap-1">
+                              <Badge variant="secondary" className="bg-slate-100 text-slate-700">
+                                {category?.nombre ?? product.categoria ?? 'Sin categoría'}
+                              </Badge>
+                              <Badge variant="outline" className={getOriginBadgeClasses(category)}>
+                                {formatOriginLabel(category)}
+                              </Badge>
+                            </div>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell className="text-slate-700 font-medium">
                         {formatCurrency(product.precioVenta)}
+                      </TableCell>
+                      <TableCell>
+                        {typeof resolveUnitCost(product) === 'number' ? (
+                          <Badge variant="outline" className="border-slate-200 text-slate-700">
+                            {formatCurrency(resolveUnitCost(product)!)}
+                          </Badge>
+                        ) : (
+                          <span className="text-slate-400 text-xs">Sin dato</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         <Badge
@@ -307,12 +381,33 @@ export default function Products() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="product-categoria">Categoría</Label>
-              <Input
-                id="product-categoria"
-                placeholder="Pan dulce, pasteles, etc."
-                value={productForm.categoria}
-                onChange={(e) => setProductForm((prev) => ({ ...prev, categoria: e.target.value }))}
-              />
+              <Select
+                value={productForm.categoriaId || NO_CATEGORY_VALUE}
+                onValueChange={(value) =>
+                  setProductForm((prev) => ({
+                    ...prev,
+                    categoriaId: value === NO_CATEGORY_VALUE ? '' : value,
+                  }))
+                }
+                disabled={isLoadingCategories}
+              >
+                <SelectTrigger id="product-categoria">
+                  <SelectValue placeholder={isLoadingCategories ? 'Cargando categorías...' : 'Seleccione una categoría'} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_CATEGORY_VALUE}>Sin categoría</SelectItem>
+                  {(categories ?? []).map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.nombre} · {category.tipo === 'PRODUCCION' ? 'Producción' : 'Reventa'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {!isLoadingCategories && (!categories || categories.length === 0) && (
+                <p className="text-xs text-slate-500">
+                  No hay categorías registradas. Creálas desde Inventario &gt; Categorías.
+                </p>
+              )}
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
@@ -327,6 +422,17 @@ export default function Products() {
                 />
               </div>
               <div className="space-y-2">
+                <Label htmlFor="product-costo">Costo unitario (C$)</Label>
+                <Input
+                  id="product-costo"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={productForm.precioUnitario}
+                  onChange={(e) => setProductForm((prev) => ({ ...prev, precioUnitario: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
                 <Label htmlFor="product-stock">Stock disponible</Label>
                 <Input
                   id="product-stock"

@@ -4,13 +4,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertTriangle, TrendingUp, ShoppingBag, Factory, Package, ArrowRight, Clock, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { formatCurrency } from '@/lib/format';
-import type { DashboardStats, Producto, Insumo, Venta, Receta } from '@/types';
+import type { Producto, Insumo, Venta, Receta } from '@/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuthStore } from '@/store/authStore';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { fetchInsumos } from '@/lib/inventoryApi';
+import { AxiosError } from 'axios';
 
 export default function Dashboard() {
   const { user } = useAuthStore();
@@ -19,24 +20,47 @@ export default function Dashboard() {
   const { data: dashboardData, isLoading } = useQuery({
     queryKey: ['dashboard-data', user?.role],
     queryFn: async () => {
-      const [productosRes, insumosData, recetasRes] = await Promise.all([
+      const safeFetchRecetas = async (): Promise<Receta[]> => {
+        try {
+          const { data } = await api.get<{ data: Receta[] }>('/production/recipes');
+          return data.data;
+        } catch (error) {
+          if (error instanceof AxiosError && error.response?.status === 404) {
+            console.info('Endpoint /production/recipes no disponible, continuando sin recetas.');
+            return [];
+          }
+          console.warn('No se pudieron obtener recetas', error);
+          return [];
+        }
+      };
+
+      const [productosRes, insumosData, recetas] = await Promise.all([
         api.get<{ data: Producto[] }>('/production/products'),
         fetchInsumos(),
-        api.get<{ data: Receta[] }>('/production/recipes'),
+        safeFetchRecetas(),
       ]);
 
       const productos = productosRes.data.data;
       const insumos = insumosData;
-      const recetas = recetasRes.data.data;
 
       const productosDisponibles = productos.filter((producto) => producto.stockDisponible > 0).length;
       const insumosStockBajo = insumos.filter((insumo) => insumo.stock < 10).length;
 
       // Helper to calculate cost of a product based on its recipe
       const calculateProductCost = (productoId: string) => {
+        const producto = productos.find((p) => p.id === productoId);
+        if (producto) {
+          if (typeof producto.precioUnitario === 'number') {
+            return producto.precioUnitario;
+          }
+          if (typeof producto.costoUnitario === 'number') {
+            return producto.costoUnitario;
+          }
+        }
+
         const receta = recetas.find((r) => r.productoId === productoId);
         if (!receta) return 0;
-        
+
         const insumosCost = receta.items.reduce((total, item) => {
           const insumo = insumos.find((i) => i.id === item.insumoId);
           return total + (item.cantidad * (insumo?.costoPromedio || 0));

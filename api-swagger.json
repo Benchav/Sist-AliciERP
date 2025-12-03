@@ -3,15 +3,199 @@
   "openapi": "3.0.1",
   "info": {
     "title": "Alici ERP API",
-    "version": "1.0.0",
-    "description": "Replace this description with details about your API."
+    "version": "1.1.0",
+    "description": "Especificación reducida para los flujos de producción diaria y ventas."
   },
   "servers": [
     {
-      "url": "https://api.example.com",
-      "description": "Replace with your API base URL."
+      "url": "https://sist-alici.vercel.app/api",
+      "description": "Backend desplegado en producción"
     }
   ],
-  "paths": {},
-  "components": {}
+  "paths": {
+    "/production/daily": {
+      "post": {
+        "summary": "Registrar producción diaria",
+        "tags": ["Production"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DailyProductionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Lotes registrados",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DailyProductionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error de validación"
+          }
+        }
+      }
+    },
+    "/production/history": {
+      "get": {
+        "summary": "Historial de lotes producidos",
+        "tags": ["Production"],
+        "responses": {
+          "200": {
+            "description": "Listado de registros",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ProductionRecord"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sales/{id}/pdf": {
+      "get": {
+        "summary": "Descargar factura PDF",
+        "tags": ["Sales"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Archivo PDF",
+            "content": {
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ProductionIngredient": {
+        "type": "object",
+        "properties": {
+          "insumoId": { "type": "string" },
+          "cantidad": { "type": "number", "minimum": 0 }
+        },
+        "required": ["insumoId", "cantidad"]
+      },
+      "DailyProductionLot": {
+        "type": "object",
+        "properties": {
+          "productoId": { "type": "string" },
+          "cantidadProducida": { "type": "number", "minimum": 0 },
+          "costoManoObra": { "type": "number", "minimum": 0 },
+          "insumos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductionIngredient"
+            }
+          }
+        },
+        "required": ["productoId", "cantidadProducida", "insumos"]
+      },
+      "DailyProductionRequest": {
+        "type": "array",
+        "items": { "$ref": "#/components/schemas/DailyProductionLot" }
+      },
+      "DailyProductionLotSummary": {
+        "type": "object",
+        "properties": {
+          "loteId": { "type": "string" },
+          "productoId": { "type": "string" },
+          "cantidadProducida": { "type": "number" },
+          "costoUnitario": { "type": "number" },
+          "costoTotal": { "type": "number" },
+          "stockActualizado": { "type": "number" }
+        },
+        "required": ["productoId", "cantidadProducida"]
+      },
+      "DailyProductionResponse": {
+        "type": "object",
+        "properties": {
+          "lotes": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/DailyProductionLotSummary" }
+          },
+          "resumen": {
+            "type": "object",
+            "properties": {
+              "totalLotes": { "type": "integer" },
+              "unidadesTotales": { "type": "number" },
+              "costoTotal": { "type": "number" },
+              "updatedAt": { "type": "string", "format": "date-time" }
+            }
+          }
+        },
+        "required": ["lotes"]
+      },
+      "ProductionRecordInsumo": {
+        "type": "object",
+        "properties": {
+          "insumoId": { "type": "string" },
+          "cantidad": { "type": "number" },
+          "costoUnitario": { "type": "number" },
+          "costoTotal": { "type": "number" }
+        },
+        "required": ["insumoId", "cantidad", "costoUnitario", "costoTotal"]
+      },
+      "ProductionRecord": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "productoId": { "type": "string" },
+          "volumenSolicitado": { "type": "number" },
+          "costoIngredientes": { "type": "number" },
+          "costoManoObra": { "type": "number" },
+          "costoTotal": { "type": "number" },
+          "costoUnitario": { "type": "number" },
+          "insumosConsumidos": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ProductionRecordInsumo" }
+          },
+          "fecha": { "type": "string", "format": "date-time" }
+        },
+        "required": [
+          "id",
+          "productoId",
+          "volumenSolicitado",
+          "costoIngredientes",
+          "costoManoObra",
+          "costoTotal",
+          "fecha"
+        ]
+      }
+    }
+  }
 }

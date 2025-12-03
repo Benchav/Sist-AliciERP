@@ -8,6 +8,8 @@ import {
   Users,
   LogOut,
   ChevronRight,
+  Truck,
+  Tags,
   type LucideIcon,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
@@ -54,6 +56,18 @@ const menuItems: MenuItem[] = [
     title: 'Inventario',
     icon: Package,
     url: '/inventory',
+    roles: ['ADMIN', 'PANADERO', 'CAJERO'],
+  },
+  {
+    title: 'Distribuidores',
+    icon: Truck,
+    url: '/providers',
+    roles: ['ADMIN', 'PANADERO'],
+  },
+  {
+    title: 'Productos',
+    icon: Tags,
+    url: '/products',
     roles: ['ADMIN', 'PANADERO', 'CAJERO'],
   },
   {

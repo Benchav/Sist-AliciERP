@@ -43,12 +43,27 @@ export interface Provider {
   updatedAt: string;
 }
 
+export type CategoriaTipo = 'PRODUCCION' | 'REVENTA';
+
+export interface Categoria {
+  id: string;
+  nombre: string;
+  tipo: CategoriaTipo;
+  descripcion?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface Producto {
   id: string;
   nombre: string;
   categoria?: string;
+  categoriaId?: string | null;
+  precioUnitario?: number;
   precioVenta: number;
   stockDisponible: number;
+  costoUnitario?: number;
+  costoUnitarioActualizadoEn?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -120,8 +135,9 @@ export type UpdateProviderDTO = Partial<CreateProviderDTO>;
 export interface CreateProductDTO {
   nombre: string;
   precioVenta: number;
+  precioUnitario: number;
   stockDisponible: number;
-  categoria?: string;
+  categoriaId?: string;
 }
 
 export type UpdateProductDTO = Partial<CreateProductDTO>;
@@ -142,9 +158,56 @@ export interface PurchaseRequest {
   costoTotal: number;
 }
 
-export interface ProductionRequest {
-  recetaId: string;
+export interface ProductionIngredientInput {
+  insumoId: string;
   cantidad: number;
+}
+
+export interface DailyProductionLotRequest {
+  productoId: string;
+  cantidadProducida: number;
+  costoManoObra?: number;
+  insumos: ProductionIngredientInput[];
+}
+
+export type DailyProductionRequest = DailyProductionLotRequest[];
+
+export interface DailyProductionLotSummary {
+  loteId?: string;
+  productoId: string;
+  cantidadProducida: number;
+  costoUnitario?: number;
+  costoTotal?: number;
+  stockActualizado?: number;
+}
+
+export interface DailyProductionResponse {
+  lotes: DailyProductionLotSummary[];
+  resumen?: {
+    totalLotes?: number;
+    unidadesTotales?: number;
+    costoTotal?: number;
+    updatedAt?: string;
+  };
+}
+
+export interface ProductionRecordInsumo {
+  insumoId: string;
+  cantidad: number;
+  costoUnitario: number;
+  costoTotal: number;
+}
+
+export interface ProductionRecord {
+  id: string;
+  productoId: string;
+  volumenSolicitado: number;
+  costoIngredientes: number;
+  costoManoObra: number;
+  costoTotal: number;
+  costoUnitario?: number;
+  insumosConsumidos?: ProductionRecordInsumo[];
+  fecha: string;
 }
 
 export interface DashboardStats {

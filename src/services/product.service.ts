@@ -1,7 +1,7 @@
 import { api } from '@/lib/api';
 import type { CreateProductDTO, Producto, UpdateProductDTO } from '@/types';
 
-const PRODUCTS_PATH = '/production';
+const PRODUCTS_PATH = '/production/products';
 
 type ProductResponse<T> = { data: T };
 

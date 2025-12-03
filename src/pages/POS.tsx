@@ -18,13 +18,14 @@ import { Search, ShoppingCart, Trash2, Plus, Minus, CreditCard } from 'lucide-re
 import { toast } from 'sonner';
 import { formatCurrency, amountToCents, calculateChange, calculateTotalPayment } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
-import type { Producto, SaleRequest } from '@/types';
+import type { Categoria, Producto, SaleRequest } from '@/types';
 import { useAuthStore } from '@/store/authStore';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { PageHeading } from '@/components/PageHeading';
-import { PRODUCTION_PRODUCTS_QUERY_KEY } from '@/lib/queryKeys';
+import { INVENTORY_CATEGORIES_QUERY_KEY, PRODUCTION_PRODUCTS_QUERY_KEY } from '@/lib/queryKeys';
 import { productService } from '@/services/product.service';
 import { salesService } from '@/services/sales.service';
+import { categoryService } from '@/services/category.service';
 
 interface CartItem {
   productId: string;
@@ -75,15 +76,42 @@ export default function POS() {
     }
   }, [cart.length]);
 
+  const { data: categorias } = useQuery({
+    queryKey: INVENTORY_CATEGORIES_QUERY_KEY,
+    queryFn: categoryService.getCategories,
+  });
+
   const { data: productos } = useQuery({
     queryKey: PRODUCTION_PRODUCTS_QUERY_KEY,
     queryFn: productService.getProducts,
   });
 
+  const categoryMap = useMemo(() => {
+    if (!categorias) return new Map<string, Categoria>();
+    return new Map(categorias.map((categoria) => [categoria.id, categoria]));
+  }, [categorias]);
+
   const productMap = useMemo(() => {
     if (!productos) return new Map<string, Producto>();
     return new Map(productos.map((producto) => [producto.id, producto]));
   }, [productos]);
+
+  const resolveProductCategory = (producto?: Producto): Categoria | undefined => {
+    if (!producto?.categoriaId) return undefined;
+    return categoryMap.get(producto.categoriaId);
+  };
+
+  const getOriginLabel = (categoria?: Categoria): string => {
+    if (!categoria) return 'Sin origen';
+    return categoria.tipo === 'PRODUCCION' ? 'Producción' : 'Reventa';
+  };
+
+  const getOriginBadgeClasses = (categoria?: Categoria): string => {
+    if (!categoria) return 'bg-slate-50 text-slate-600 border-slate-200';
+    return categoria.tipo === 'PRODUCCION'
+      ? 'bg-amber-50 text-amber-700 border-amber-100'
+      : 'bg-emerald-50 text-emerald-700 border-emerald-100';
+  };
 
   useEffect(() => {
     setCart((prev) =>
@@ -124,10 +152,11 @@ export default function POS() {
     if (!productos) return [];
     const needle = search.toLowerCase();
     return productos.filter((p) => {
-      const haystack = `${p.nombre} ${p.categoria ?? ''}`.toLowerCase();
+      const categoria = resolveProductCategory(p);
+      const haystack = `${p.nombre} ${p.categoria ?? ''} ${categoria?.nombre ?? ''} ${categoria?.tipo ?? ''}`.toLowerCase();
       return haystack.includes(needle);
     });
-  }, [productos, search]);
+  }, [productos, search, categoryMap]);
 
   const addToCart = (producto: Producto) => {
     const latestProduct = productMap.get(producto.id) ?? producto;
@@ -348,6 +377,18 @@ export default function POS() {
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-slate-900 truncate">{product.nombre}</p>
                   <p className="text-sm text-slate-500">{formatCurrency(product.precioVenta)}</p>
+                  {(() => {
+                    const categoria = resolveProductCategory(product);
+                    if (!categoria && !product.categoria) return null;
+                    return (
+                      <div className="mt-1 inline-flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                        <span>{categoria?.nombre ?? product.categoria}</span>
+                        <Badge variant="outline" className={`${getOriginBadgeClasses(categoria)} font-normal`}>
+                          {getOriginLabel(categoria)}
+                        </Badge>
+                      </div>
+                    );
+                  })()}
                 </div>
                 <div className="flex items-center gap-1 bg-white rounded-md border border-slate-200 shadow-sm p-0.5">
                   <Button
@@ -446,11 +487,18 @@ export default function POS() {
                     <CardTitle className="text-base font-semibold text-slate-900 line-clamp-2 leading-tight group-hover:text-indigo-600 transition-colors">
                       {producto.nombre}
                     </CardTitle>
-                    {producto.categoria && (
-                      <Badge variant="secondary" className="shrink-0 bg-slate-100 text-slate-600 hover:bg-slate-200 border-slate-200">
-                        {producto.categoria}
-                      </Badge>
-                    )}
+                    {(() => {
+                      const categoria = resolveProductCategory(producto);
+                      if (!categoria && !producto.categoria) return null;
+                      return (
+                        <div className="flex flex-col gap-1 items-end">
+                          <Badge variant="secondary" className="shrink-0 bg-slate-100 text-slate-600 border-slate-200">
+                            {categoria?.nombre ?? producto.categoria}
+                          </Badge>
+                          <Badge variant="outline" className={`${getOriginBadgeClasses(categoria)} text-[11px]`}>{getOriginLabel(categoria)}</Badge>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </CardHeader>
                 <CardContent className="px-4 pb-4">

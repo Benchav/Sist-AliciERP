@@ -24,13 +24,17 @@ import { es } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/format';
 import { cn } from '@/lib/utils';
-import type { Venta } from '@/types';
+import type { Categoria, Producto, Venta } from '@/types';
 import { useAuthStore } from '@/store/authStore';
 import { hasRole } from '@/lib/auth';
 import { getApiErrorMessage } from '@/lib/errors';
 import { PageHeading } from '@/components/PageHeading';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { DateRange } from 'react-day-picker';
 import { salesService } from '@/services/sales.service';
+import { productService } from '@/services/product.service';
+import { categoryService } from '@/services/category.service';
+import { INVENTORY_CATEGORIES_QUERY_KEY, PRODUCTION_PRODUCTS_QUERY_KEY } from '@/lib/queryKeys';
 
 export default function Sales() {
   const { user } = useAuthStore();
@@ -41,10 +45,70 @@ export default function Sales() {
     ? endOfDay((dateRange.to ?? dateRange.from)).toISOString()
     : undefined;
 
+  const { data: categories } = useQuery({
+    queryKey: INVENTORY_CATEGORIES_QUERY_KEY,
+    queryFn: categoryService.getCategories,
+  });
+
+  const { data: products } = useQuery({
+    queryKey: PRODUCTION_PRODUCTS_QUERY_KEY,
+    queryFn: productService.getProducts,
+  });
+
   const { data: sales, isLoading } = useQuery({
     queryKey: ['sales', fromISO, toISO],
     queryFn: () => salesService.getSales({ from: fromISO, to: toISO }),
   });
+
+  const categoriesMap = useMemo(() => {
+    if (!categories) return new Map<string, Categoria>();
+    return new Map(categories.map((category) => [category.id, category]));
+  }, [categories]);
+
+  const productMap = useMemo(() => {
+    if (!products) return new Map<string, Producto>();
+    return new Map(products.map((product) => [product.id, product]));
+  }, [products]);
+
+  const resolveItemCategory = (productoId?: string): Categoria | undefined => {
+    if (!productoId) return undefined;
+    const producto = productMap.get(productoId);
+    if (!producto?.categoriaId) return undefined;
+    return categoriesMap.get(producto.categoriaId);
+  };
+
+  const formatOriginLabel = (categoria?: Categoria | null): string => {
+    if (!categoria) return 'Sin origen asignado';
+    return categoria.tipo === 'PRODUCCION' ? 'Producción' : 'Reventa';
+  };
+
+  const getOriginBadgeClasses = (categoria?: Categoria | null): string => {
+    if (!categoria) return 'bg-slate-50 text-slate-600 border-slate-200';
+    return categoria.tipo === 'PRODUCCION'
+      ? 'bg-amber-50 text-amber-700 border-amber-100'
+      : 'bg-emerald-50 text-emerald-700 border-emerald-100';
+  };
+
+  const buildSaleOriginSummary = (venta: Venta) => {
+    return venta.items.reduce<Record<string, number>>((acc, item) => {
+      const categoria = resolveItemCategory(item.productoId);
+      const key = categoria?.tipo ?? 'SIN_ORIGEN';
+      acc[key] = (acc[key] ?? 0) + item.cantidad;
+      return acc;
+    }, {});
+  };
+
+  const resolveOriginLabelByKey = (key: string) => {
+    if (key === 'PRODUCCION') return 'Producción';
+    if (key === 'REVENTA') return 'Reventa';
+    return 'Sin origen';
+  };
+
+  const resolveOriginBadgeClassesByKey = (key: string) => {
+    if (key === 'PRODUCCION') return 'bg-amber-50 text-amber-700 border-amber-100';
+    if (key === 'REVENTA') return 'bg-emerald-50 text-emerald-700 border-emerald-100';
+    return 'bg-slate-50 text-slate-600 border-slate-200';
+  };
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -215,6 +279,13 @@ export default function Sales() {
         }
       />
 
+      <Alert className="border-indigo-200 bg-indigo-50/80 text-slate-800">
+        <AlertTitle>Origen de productos en ventas</AlertTitle>
+        <AlertDescription>
+          El POS y los reportes identifican automáticamente si cada línea proviene de producción o reventa según la categoría asignada.
+        </AlertDescription>
+      </Alert>
+
       <Card className="border-slate-200 shadow-sm">
         <CardHeader className="border-b border-slate-100 bg-white px-6 py-4">
           <CardTitle className="text-lg font-semibold text-slate-900 flex items-center gap-2">
@@ -314,7 +385,27 @@ export default function Sales() {
                         <TableCell className="font-medium text-slate-900">
                           {formatCurrency(venta.totalNIO)}
                         </TableCell>
-                        <TableCell className="text-slate-500">{venta.items.length} items</TableCell>
+                        <TableCell className="text-slate-500">
+                          {venta.items.length} items
+                          {(() => {
+                            const summary = buildSaleOriginSummary(venta);
+                            const entries = Object.entries(summary);
+                            if (!entries.length) return null;
+                            return (
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {entries.map(([key, cantidad]) => (
+                                  <Badge
+                                    key={`${venta.id}-${key}`}
+                                    variant="outline"
+                                    className={resolveOriginBadgeClassesByKey(key)}
+                                  >
+                                    {resolveOriginLabelByKey(key)}: {cantidad}
+                                  </Badge>
+                                ))}
+                              </div>
+                            );
+                          })()}
+                        </TableCell>
                         <TableCell>
                           <Badge variant="outline" className={venta.estado === 'ANULADA' ? "bg-red-50 text-red-700 border-red-100" : "bg-emerald-50 text-emerald-700 border-emerald-100"}>
                             {venta.estado}
@@ -374,7 +465,27 @@ export default function Sales() {
                         <p className="text-base font-semibold text-slate-900">
                           {format(new Date(venta.fecha), 'dd/MM/yyyy h:mm a')}
                         </p>
-                        <p className="text-xs text-slate-500">{venta.items.length} items</p>
+                        <p className="text-xs text-slate-500">
+                          {venta.items.length} items
+                        </p>
+                        {(() => {
+                          const summary = buildSaleOriginSummary(venta);
+                          const entries = Object.entries(summary);
+                          if (!entries.length) return null;
+                          return (
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {entries.map(([key, cantidad]) => (
+                                <Badge
+                                  key={`${venta.id}-${key}-mobile`}
+                                  variant="outline"
+                                  className={`${resolveOriginBadgeClassesByKey(key)} text-[11px]`}
+                                >
+                                  {resolveOriginLabelByKey(key)}: {cantidad}
+                                </Badge>
+                              ))}
+                            </div>
+                          );
+                        })()}
                       </div>
                       <Badge variant="outline" className={venta.estado === 'ANULADA' ? "bg-red-50 text-red-700 border-red-100" : "bg-emerald-50 text-emerald-700 border-emerald-100"}>
                         {venta.estado}
