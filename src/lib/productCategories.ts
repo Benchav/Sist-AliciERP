@@ -3,26 +3,57 @@ import type { Producto } from '@/types';
 export const DEFAULT_PRODUCT_CATEGORY = 'Sin categoría';
 
 type CategoryRule = {
-  label: string;
+  label: 'Pan Simple' | 'Pan Dulce' | 'Postres' | 'Tortas';
   keywords: string[];
 };
 
 const CATEGORY_RULES: CategoryRule[] = [
   {
-    label: 'Pan simple',
-    keywords: ['baguette', 'baguete', 'pan frances', 'pan simple', 'bolillo', 'telera'],
+    label: 'Pan Simple',
+    keywords: [
+      'pan simple',
+      'pan salado',
+      'baguette',
+      'baguete',
+      'bagette',
+      'pan frances',
+      'bolillo',
+      'telera',
+      'pan campesino',
+      'pan integral',
+      'pan rustico',
+    ],
   },
   {
-    label: 'Pan dulce',
-    keywords: ['dulce', 'concha', 'cinnamon', 'role', 'danes', 'empanada', 'donut', 'donas'],
+    label: 'Pan Dulce',
+    keywords: [
+      'pan dulce',
+      'concha',
+      'cinnamon',
+      'rol',
+      'role',
+      'danes',
+      'empanada',
+      'donut',
+      'donas',
+      'mantecada',
+      'cachito',
+      'bolleria',
+      'croissant',
+      'cuernito',
+      'palmera',
+      'hojaldre',
+      'trenza',
+      'ensaimada',
+    ],
   },
   {
     label: 'Postres',
-    keywords: ['postre', 'flan', 'gelatina', 'brownie', 'galleta', 'cupcake'],
+    keywords: ['postre', 'flan', 'gelatina', 'mousse', 'tres leches', 'pay', 'brownie', 'cupcake', 'galleta'],
   },
   {
-    label: 'Pasteles',
-    keywords: ['pastel', 'cake', 'torta', 'cheesecake'],
+    label: 'Tortas',
+    keywords: ['torta', 'pastel', 'cake', 'cheesecake', 'tarta'],
   },
 ];
 
@@ -32,16 +63,25 @@ const normalizeText = (value?: string | null) =>
 const matchesKeywords = (value: string, keywords: string[]) =>
   keywords.some((keyword) => value.includes(keyword));
 
-export const getProductCategory = (producto: Producto): string => {
-  const explicitCategory = producto.categoria?.trim();
-  if (explicitCategory) {
-    return explicitCategory;
-  }
-
-  const normalizedName = normalizeText(producto.nombre);
+const inferCategoryFromValue = (value: string): string | null => {
+  if (!value) return null;
   for (const rule of CATEGORY_RULES) {
-    if (matchesKeywords(normalizedName, rule.keywords)) {
+    if (matchesKeywords(value, rule.keywords)) {
       return rule.label;
+    }
+  }
+  return null;
+};
+
+export const getProductCategory = (producto: Producto): string => {
+  const normalizedSources = [producto.nombre, producto.categoria]
+    .map((source) => normalizeText(source))
+    .filter(Boolean);
+
+  for (const value of normalizedSources) {
+    const category = inferCategoryFromValue(value);
+    if (category) {
+      return category;
     }
   }
 
