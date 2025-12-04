@@ -49,6 +49,8 @@ import { PageHeading } from '@/components/PageHeading';
 import { createInsumo, deleteInsumo, fetchInsumos, updateInsumo, type InsumoPayload } from '@/lib/inventoryApi';
 import { inventoryService } from '@/services/inventory.service';
 
+const NO_PROVIDER_VALUE = '__none__';
+
 export default function Inventory() {
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
@@ -447,9 +449,12 @@ export default function Inventory() {
             <div className="space-y-2">
               <Label htmlFor="insumo-proveedor">Proveedor principal</Label>
               <Select
-                value={insumoForm.proveedorPrincipalId || ''}
+                value={insumoForm.proveedorPrincipalId || NO_PROVIDER_VALUE}
                 onValueChange={(value) =>
-                  setInsumoForm((prev) => ({ ...prev, proveedorPrincipalId: value }))
+                  setInsumoForm((prev) => ({
+                    ...prev,
+                    proveedorPrincipalId: value === NO_PROVIDER_VALUE ? '' : value,
+                  }))
                 }
                 disabled={isLoadingProviders}
               >
@@ -457,7 +462,7 @@ export default function Inventory() {
                   <SelectValue placeholder={isLoadingProviders ? 'Cargando proveedores...' : 'Seleccione un proveedor'} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Sin proveedor</SelectItem>
+                  <SelectItem value={NO_PROVIDER_VALUE}>Sin proveedor</SelectItem>
                   {(providers ?? []).map((provider) => (
                     <SelectItem key={provider.id} value={provider.id}>
                       {provider.nombre}

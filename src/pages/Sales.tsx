@@ -117,10 +117,6 @@ export default function Sales() {
 
   const legacyInventoryMessage = 'Producto null no existe en inventario';
 
-  const canVoidSale = (venta: Venta): boolean => {
-    return venta.items.every((item) => item.productoId && productMap.has(item.productoId));
-  };
-
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       await api.delete(`/sales/${id}`);
@@ -464,18 +460,10 @@ export default function Sales() {
                                 size="sm"
                                 variant="ghost"
                                 onClick={() => {
-                                  if (!canVoidSale(venta)) {
-                                    toast.error('Esta venta es antigua y no se puede anular porque ya no existe en inventario.');
-                                    return;
-                                  }
                                   deleteMutation.mutate(venta.id);
                                 }}
-                                disabled={
-                                  !canVoidSale(venta) ||
-                                  (deleteMutation.isPending && deleteMutation.variables === venta.id)
-                                }
+                                disabled={deleteMutation.isPending && deleteMutation.variables === venta.id}
                                 className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50"
-                                title={!canVoidSale(venta) ? 'No se puede anular porque los productos fueron eliminados.' : undefined}
                               >
                                 {deleteMutation.isPending && deleteMutation.variables === venta.id ? (
                                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -556,18 +544,10 @@ export default function Sales() {
                           size="sm"
                           variant="outline"
                           onClick={() => {
-                            if (!canVoidSale(venta)) {
-                              toast.error('Esta venta es antigua y no se puede anular porque ya no existe en inventario.');
-                              return;
-                            }
                             deleteMutation.mutate(venta.id);
                           }}
-                          disabled={
-                            !canVoidSale(venta) ||
-                            (deleteMutation.isPending && deleteMutation.variables === venta.id)
-                          }
+                          disabled={deleteMutation.isPending && deleteMutation.variables === venta.id}
                           className="flex-1 text-red-600 border-red-200 hover:bg-red-50"
-                          title={!canVoidSale(venta) ? 'Venta solo lectura, los productos fueron eliminados del inventario.' : undefined}
                         >
                           {deleteMutation.isPending && deleteMutation.variables === venta.id ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
