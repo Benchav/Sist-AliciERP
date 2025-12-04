@@ -2,11 +2,12 @@ import { api } from '@/lib/api';
 import type { SaleRequest, Venta } from '@/types';
 
 const SALES_PATH = '/sales';
+const SALES_CHECKOUT_PATH = '/sales/checkout';
 
 type SalesResponse<T> = { data: T };
 
 export const createSale = async (payload: SaleRequest): Promise<Venta> => {
-  const { data } = await api.post<SalesResponse<Venta>>(SALES_PATH, payload);
+  const { data } = await api.post<SalesResponse<Venta>>(SALES_CHECKOUT_PATH, payload);
   return data.data;
 };
 

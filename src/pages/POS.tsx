@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { Search, ShoppingCart, Trash2, Plus, Minus, CreditCard } from 'lucide-react';
 import { toast } from 'sonner';
-import { formatCurrency, amountToCents, calculateChange, calculateTotalPayment } from '@/lib/format';
+import { formatCurrency, calculateChange, calculateTotalPayment } from '@/lib/format';
 import { getApiErrorMessage } from '@/lib/errors';
 import type { Categoria, Producto, SaleRequest } from '@/types';
 import { useAuthStore } from '@/store/authStore';
@@ -26,6 +26,7 @@ import { INVENTORY_CATEGORIES_QUERY_KEY, PRODUCTION_PRODUCTS_QUERY_KEY } from '@
 import { productService } from '@/services/product.service';
 import { salesService } from '@/services/sales.service';
 import { categoryService } from '@/services/category.service';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface CartItem {
   productId: string;
@@ -76,12 +77,22 @@ export default function POS() {
     }
   }, [cart.length]);
 
-  const { data: categorias } = useQuery({
+  const {
+    data: categorias,
+    isLoading: isLoadingCategorias,
+    isError: isCategoriasError,
+    refetch: refetchCategorias,
+  } = useQuery({
     queryKey: INVENTORY_CATEGORIES_QUERY_KEY,
     queryFn: categoryService.getCategories,
   });
 
-  const { data: productos } = useQuery({
+  const {
+    data: productos,
+    isLoading: isLoadingProductos,
+    isError: isProductosError,
+    refetch: refetchProductos,
+  } = useQuery({
     queryKey: PRODUCTION_PRODUCTS_QUERY_KEY,
     queryFn: productService.getProducts,
   });
@@ -95,6 +106,9 @@ export default function POS() {
     if (!productos) return new Map<string, Producto>();
     return new Map(productos.map((producto) => [producto.id, producto]));
   }, [productos]);
+
+  const catalogHasError = isCategoriasError || isProductosError;
+  const isCatalogLoading = isLoadingCategorias || isLoadingProductos;
 
   const resolveProductCategory = (producto?: Producto): Categoria | undefined => {
     if (!producto?.categoriaId) return undefined;
@@ -319,13 +333,13 @@ export default function POS() {
     const pagos: SaleRequest['pagos'] = [];
 
     if (nioPayment > 0) {
-      pagos.push({ moneda: 'NIO', cantidad: amountToCents(nioPayment) });
+      pagos.push({ moneda: 'NIO', cantidad: nioPayment });
     }
 
     if (usdPayment > 0) {
       pagos.push({
         moneda: 'USD',
-        cantidad: amountToCents(usdPayment),
+        cantidad: usdPayment,
         tasa: config.tasaCambio,
       });
     }
@@ -462,6 +476,28 @@ export default function POS() {
         description="Atiende más rápido con búsqueda inteligente y carrito en vivo."
       />
 
+      {catalogHasError && (
+        <Alert variant="destructive" className="border-red-200 bg-red-50 text-red-800">
+          <AlertTitle>Catálogo no disponible</AlertTitle>
+          <AlertDescription className="flex flex-col gap-3 text-sm">
+            No pudimos cargar productos o categorías. Revisa tu conexión e inténtalo nuevamente.
+            <div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-red-200 text-red-700 hover:bg-red-100"
+                onClick={() => {
+                  refetchProductos();
+                  refetchCategorias();
+                }}
+              >
+                Reintentar
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-3 items-start">
         {/* Products Grid */}
         <div className="order-2 space-y-4 lg:order-1 lg:col-span-2">
@@ -476,49 +512,74 @@ export default function POS() {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {filteredProducts.map((producto) => (
-              <Card
-                key={producto.id}
-                className="cursor-pointer transition-all hover:shadow-md hover:border-indigo-200 group border-slate-200 shadow-sm overflow-hidden"
-                onClick={() => addToCart(producto)}
-              >
-                <CardHeader className="pb-3 pt-4 px-4">
-                  <div className="flex justify-between items-start gap-2">
-                    <CardTitle className="text-base font-semibold text-slate-900 line-clamp-2 leading-tight group-hover:text-indigo-600 transition-colors">
-                      {producto.nombre}
-                    </CardTitle>
-                    {(() => {
-                      const categoria = resolveProductCategory(producto);
-                      if (!categoria && !producto.categoria) return null;
-                      return (
-                        <div className="flex flex-col gap-1 items-end">
-                          <Badge variant="secondary" className="shrink-0 bg-slate-100 text-slate-600 border-slate-200">
-                            {categoria?.nombre ?? producto.categoria}
-                          </Badge>
-                          <Badge variant="outline" className={`${getOriginBadgeClasses(categoria)} text-[11px]`}>{getOriginLabel(categoria)}</Badge>
-                        </div>
-                      );
-                    })()}
-                  </div>
-                </CardHeader>
-                <CardContent className="px-4 pb-4">
-                  <div className="flex items-end justify-between">
-                    <span className="text-lg font-bold text-slate-900">
-                      {formatCurrency(producto.precioVenta)}
-                    </span>
-                    <Badge 
-                      variant="outline" 
-                      className={producto.stockDisponible > 0 
-                        ? "bg-emerald-50 text-emerald-700 border-emerald-100" 
-                        : "bg-red-50 text-red-700 border-red-100"
-                      }
-                    >
-                      Stock: {producto.stockDisponible}
-                    </Badge>
-                  </div>
+            {isCatalogLoading ? (
+              Array.from({ length: 6 }).map((_, idx) => (
+                <Card key={idx} className="border-slate-200 shadow-sm">
+                  <CardHeader className="space-y-2">
+                    <div className="h-4 w-3/4 animate-pulse rounded bg-slate-200" />
+                    <div className="h-3 w-1/2 animate-pulse rounded bg-slate-100" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-6 w-1/3 animate-pulse rounded bg-slate-200" />
+                  </CardContent>
+                </Card>
+              ))
+            ) : filteredProducts.length === 0 ? (
+              <Card className="border-dashed border-slate-200 bg-slate-50/50 text-center col-span-full">
+                <CardContent className="py-10 text-slate-500">
+                  {catalogHasError
+                    ? 'Reintenta la carga para ver los productos.'
+                    : 'No hay productos que coincidan con tu búsqueda.'}
                 </CardContent>
               </Card>
-            ))}
+            ) : (
+              filteredProducts.map((producto) => (
+                <Card
+                  key={producto.id}
+                  className="cursor-pointer transition-all hover:shadow-md hover:border-indigo-200 group border-slate-200 shadow-sm overflow-hidden"
+                  onClick={() => addToCart(producto)}
+                >
+                  <CardHeader className="pb-3 pt-4 px-4">
+                    <div className="flex justify-between items-start gap-2">
+                      <CardTitle className="text-base font-semibold text-slate-900 line-clamp-2 leading-tight group-hover:text-indigo-600 transition-colors">
+                        {producto.nombre}
+                      </CardTitle>
+                      {(() => {
+                        const categoria = resolveProductCategory(producto);
+                        if (!categoria && !producto.categoria) return null;
+                        return (
+                          <div className="flex flex-col gap-1 items-end">
+                            <Badge variant="secondary" className="shrink-0 bg-slate-100 text-slate-600 border-slate-200">
+                              {categoria?.nombre ?? producto.categoria}
+                            </Badge>
+                            <Badge variant="outline" className={`${getOriginBadgeClasses(categoria)} text-[11px]`}>
+                              {getOriginLabel(categoria)}
+                            </Badge>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="px-4 pb-4">
+                    <div className="flex items-end justify-between">
+                      <span className="text-lg font-bold text-slate-900">
+                        {formatCurrency(producto.precioVenta)}
+                      </span>
+                      <Badge
+                        variant="outline"
+                        className={
+                          producto.stockDisponible > 0
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                            : 'bg-red-50 text-red-700 border-red-100'
+                        }
+                      >
+                        Stock: {producto.stockDisponible}
+                      </Badge>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </div>
         </div>
 

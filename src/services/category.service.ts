@@ -1,5 +1,5 @@
 import { api } from '@/lib/api';
-import type { Categoria } from '@/types';
+import type { Categoria, CreateCategoryDTO, UpdateCategoryDTO } from '@/types';
 
 const INVENTORY_CATEGORIES_PATH = '/inventory/categories';
 
@@ -10,6 +10,23 @@ export const getCategories = async (): Promise<Categoria[]> => {
   return data.data;
 };
 
+export const createCategory = async (payload: CreateCategoryDTO): Promise<Categoria> => {
+  const { data } = await api.post<CategoryResponse<Categoria>>(INVENTORY_CATEGORIES_PATH, payload);
+  return data.data;
+};
+
+export const updateCategory = async (id: string, payload: UpdateCategoryDTO): Promise<Categoria> => {
+  const { data } = await api.put<CategoryResponse<Categoria>>(`${INVENTORY_CATEGORIES_PATH}/${id}`, payload);
+  return data.data;
+};
+
+export const deleteCategory = async (id: string): Promise<void> => {
+  await api.delete(`${INVENTORY_CATEGORIES_PATH}/${id}`);
+};
+
 export const categoryService = {
   getCategories,
+  createCategory,
+  updateCategory,
+  deleteCategory,
 };

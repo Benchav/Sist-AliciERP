@@ -2,27 +2,37 @@ import { jwtDecode } from 'jwt-decode';
 import type { User, UserRole } from '@/types';
 
 interface JWTPayload {
-  userId: string;
-  username: string;
-  role: UserRole;
-  exp: number;
+  id?: string;
+  sub?: string;
+  userId?: string;
+  username?: string;
+  role?: UserRole;
+  exp?: number;
 }
+
+const resolveUserId = (payload: JWTPayload): string | null => {
+  return payload.id ?? payload.userId ?? payload.sub ?? null;
+};
 
 export const decodeToken = (token: string): User | null => {
   try {
     const decoded = jwtDecode<JWTPayload>(token);
-    
-    // Check if token is expired
-    if (decoded.exp * 1000 < Date.now()) {
+
+    if (decoded.exp && decoded.exp * 1000 < Date.now()) {
+      return null;
+    }
+
+    const id = resolveUserId(decoded);
+    if (!id || !decoded.username || !decoded.role) {
       return null;
     }
 
     return {
-      id: decoded.userId,
+      id,
       username: decoded.username,
       role: decoded.role,
     };
-  } catch (error) {
+  } catch {
     return null;
   }
 };

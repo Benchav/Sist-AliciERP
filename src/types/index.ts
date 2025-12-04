@@ -54,6 +54,14 @@ export interface Categoria {
   updatedAt?: string;
 }
 
+export interface CreateCategoryDTO {
+  nombre: string;
+  tipo: CategoriaTipo;
+  descripcion?: string | null;
+}
+
+export type UpdateCategoryDTO = Partial<CreateCategoryDTO>;
+
 export interface Producto {
   id: string;
   nombre: string;

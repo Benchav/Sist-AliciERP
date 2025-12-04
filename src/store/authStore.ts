@@ -24,6 +24,7 @@ interface AuthState {
   token: string | null;
   config: Config | null;
   isConfigLoading: boolean;
+  isAuthReady: boolean;
   setAuth: (token: string, user?: UserLike | null) => void;
   logout: () => void;
   initAuth: () => Promise<void>;
@@ -36,29 +37,30 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   token: null,
   config: null,
   isConfigLoading: false,
+  isAuthReady: false,
   setAuth: (token: string, userParam?: UserLike | null) => {
     const normalizedUser = normalizeUser(userParam) ?? decodeToken(token);
 
     if (normalizedUser) {
       localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token);
       localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(normalizedUser));
-      set({ token, user: normalizedUser });
+      set({ token, user: normalizedUser, isAuthReady: true });
       return;
     }
 
     localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
     localStorage.removeItem(AUTH_USER_STORAGE_KEY);
-    set({ token: null, user: null, config: null });
+    set({ token: null, user: null, config: null, isAuthReady: true });
   },
   logout: () => {
     localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
     localStorage.removeItem(AUTH_USER_STORAGE_KEY);
-    set({ token: null, user: null, config: null });
+    set({ token: null, user: null, config: null, isAuthReady: true });
   },
   initAuth: async () => {
     const token = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
     if (!token) {
-      set({ token: null, user: null, config: null });
+      set({ token: null, user: null, config: null, isAuthReady: true });
       return;
     }
 
@@ -82,11 +84,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         await get().fetchConfig();
       } catch {
         // ignore config fetch errors during bootstrap
+      } finally {
+        set({ isAuthReady: true });
       }
     } else {
       localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
       localStorage.removeItem(AUTH_USER_STORAGE_KEY);
-      set({ token: null, user: null, config: null });
+      set({ token: null, user: null, config: null, isAuthReady: true });
     }
   },
   fetchConfig: async () => {

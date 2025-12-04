@@ -98,7 +98,12 @@ export default function Production() {
   const [lastDailySummary, setLastDailySummary] = useState<DailyProductionResponse | null>(null);
   const [recentlyUpdatedProducts, setRecentlyUpdatedProducts] = useState<Set<string>>(new Set());
 
-  const { data: productos } = useQuery({
+  const {
+    data: productos,
+    isLoading: isLoadingProductos,
+    isError: isProductosError,
+    refetch: refetchProductos,
+  } = useQuery({
     queryKey: PRODUCTION_PRODUCTS_QUERY_KEY,
     queryFn: async () => {
       const { data } = await api.get<{ data: Producto[] }>('/production/products');
@@ -517,6 +522,33 @@ export default function Production() {
             </Button>
           }
         />
+
+        {isLoadingProductos && !isProductosError && (
+          <Card className="border-slate-200 bg-slate-50/80 shadow-sm">
+            <CardContent className="flex items-center gap-3 py-4 text-sm text-slate-600">
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-500" />
+              Cargando catálogo de productos...
+            </CardContent>
+          </Card>
+        )}
+
+        {isProductosError && (
+          <Alert variant="destructive" className="border-red-200 bg-red-50 text-red-800">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>No se pudieron cargar los productos</AlertTitle>
+            <AlertDescription className="flex flex-col gap-3 text-sm">
+              Intenta nuevamente. Sin catálogo no es posible registrar producción.
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-red-200 text-red-700 hover:bg-red-100 w-fit"
+                onClick={() => refetchProductos()}
+              >
+                Reintentar
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
 
         {lastDailySummary ? (
           <Card className="border border-emerald-200 bg-emerald-50/60 shadow-sm">

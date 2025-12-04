@@ -10,6 +10,7 @@ import {
   ChevronRight,
   Truck,
   Tags,
+  Layers,
   type LucideIcon,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
@@ -69,6 +70,12 @@ const menuItems: MenuItem[] = [
     icon: Tags,
     url: '/products',
     roles: ['ADMIN', 'PANADERO', 'CAJERO'],
+  },
+  {
+    title: 'Categorías productos',
+    icon: Layers,
+    url: '/product-categories',
+    roles: ['ADMIN', 'PANADERO'],
   },
   {
     title: 'Producción',
