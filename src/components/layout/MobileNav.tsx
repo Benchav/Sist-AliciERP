@@ -1,4 +1,4 @@
-import { LayoutDashboard, ShoppingCart, Package, Factory, Receipt } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, Package, Factory, Receipt, type LucideIcon } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
 import { hasRole } from '@/lib/auth';
@@ -8,7 +8,7 @@ import type { UserRole } from '@/types';
 export function MobileNav() {
   const { user } = useAuthStore();
 
-  const items: { title: string; icon: any; url: string; roles: UserRole[] }[] = [
+  const items: { title: string; icon: LucideIcon; url: string; roles: UserRole[] }[] = [
     {
       title: 'Inicio',
       icon: LayoutDashboard,

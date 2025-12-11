@@ -20,6 +20,7 @@ const Providers = lazy(() => import('./pages/Providers'));
 const Products = lazy(() => import('./pages/Products'));
 const ProductCategories = lazy(() => import('./pages/ProductCategories'));
 const NotFound = lazy(() => import('./pages/NotFound'));
+const ProductRecipe = lazy(() => import('./pages/ProductRecipe'));
 
 const queryClient = new QueryClient();
 
@@ -100,6 +101,16 @@ const App = () => {
                   </ProtectedRoute>
                 }
               />
+                <Route
+                  path="/products/:productId"
+                  element={
+                    <ProtectedRoute allowedRoles={['ADMIN', 'PANADERO']}>
+                      <AppLayout>
+                        <ProductRecipe />
+                      </AppLayout>
+                    </ProtectedRoute>
+                  }
+                />
               <Route
                 path="/product-categories"
                 element={

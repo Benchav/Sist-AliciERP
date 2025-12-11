@@ -48,6 +48,7 @@ import { hasRole } from '@/lib/auth';
 import { PageHeading } from '@/components/PageHeading';
 import { createInsumo, deleteInsumo, fetchInsumos, updateInsumo, type InsumoPayload } from '@/lib/inventoryApi';
 import { inventoryService } from '@/services/inventory.service';
+import { useConversions } from '@/services/conversion.service';
 
 const NO_PROVIDER_VALUE = '__none__';
 
@@ -80,10 +81,26 @@ export default function Inventory() {
     queryFn: inventoryService.getProviders,
   });
 
+  const { data: conversions } = useConversions();
+
   const providerMap = useMemo(() => {
     if (!providers) return new Map<string, string>();
     return new Map(providers.map((provider) => [provider.id, provider.nombre]));
   }, [providers]);
+
+  const unitOptions = useMemo(() => {
+    const units = new Set<string>();
+    conversions?.forEach((conv) => {
+      units.add(conv.unidadOrigen.toUpperCase());
+      units.add(conv.unidadDestino.toUpperCase());
+    });
+    insumos?.forEach((insumo) => {
+      if (insumo.unidad) {
+        units.add(insumo.unidad.toUpperCase());
+      }
+    });
+    return Array.from(units).sort();
+  }, [conversions, insumos]);
 
   const resetInsumoForm = () => {
     setInsumoForm({ nombre: '', unidad: '', stock: '', costoPromedio: '', proveedorPrincipalId: '' });
@@ -222,7 +239,7 @@ export default function Inventory() {
 
     const payload = {
       nombre: insumoForm.nombre.trim(),
-      unidad: insumoForm.unidad.trim(),
+      unidad: insumoForm.unidad.trim().toUpperCase(),
       stock: stockValue,
       costoPromedio: costValue,
       proveedorPrincipalId: proveedorValue || undefined,
@@ -439,12 +456,27 @@ export default function Inventory() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="insumo-unidad">Unidad</Label>
-              <Input
-                id="insumo-unidad"
-                value={insumoForm.unidad}
-                onChange={(e) => setInsumoForm((prev) => ({ ...prev, unidad: e.target.value }))}
-                placeholder="kg, lt, caja..."
-              />
+              <Select
+                value={insumoForm.unidad || undefined}
+                onValueChange={(value) =>
+                  setInsumoForm((prev) => ({ ...prev, unidad: value.toUpperCase() }))
+                }
+                disabled={unitOptions.length === 0}
+              >
+                <SelectTrigger id="insumo-unidad">
+                  <SelectValue placeholder={unitOptions.length === 0 ? 'No hay unidades disponibles' : 'Seleccione una unidad'} />
+                </SelectTrigger>
+                <SelectContent>
+                  {unitOptions.map((unit) => (
+                    <SelectItem key={unit} value={unit}>
+                      {unit}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {unitOptions.length === 0 ? (
+                <p className="text-xs text-amber-600">Configura unidades en conversiones antes de crear insumos.</p>
+              ) : null}
             </div>
             <div className="space-y-2">
               <Label htmlFor="insumo-proveedor">Proveedor principal</Label>

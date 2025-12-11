@@ -31,6 +31,7 @@ import { formatCurrency } from '@/lib/format';
 import { productService } from '@/services/product.service';
 import type { Categoria, CreateProductDTO, Producto, UpdateProductDTO } from '@/types';
 import { Plus, PenSquare, Trash2, PackageSearch } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { INVENTORY_CATEGORIES_QUERY_KEY, PRODUCTION_PRODUCTS_QUERY_KEY } from '@/lib/queryKeys';
 import { categoryService } from '@/services/category.service';
 import {
@@ -100,6 +101,7 @@ const sanitizeProductPayload = (form: ProductFormState): CreateProductDTO | null
 
 export default function Products() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [productForm, setProductForm] = useState<ProductFormState>(DEFAULT_PRODUCT_FORM);
   const [editingProduct, setEditingProduct] = useState<Producto | null>(null);
@@ -124,6 +126,11 @@ export default function Products() {
   const getProductCategory = (producto: Producto): Categoria | undefined => {
     if (!producto.categoriaId) return undefined;
     return categoriesMap.get(producto.categoriaId);
+  };
+
+  const isProductionProduct = (producto: Producto): boolean => {
+    const category = getProductCategory(producto);
+    return category?.tipo === 'PRODUCCION';
   };
 
   const formatOriginLabel = (category?: Categoria): string => {
@@ -327,6 +334,16 @@ export default function Products() {
                           >
                             <PenSquare className="h-4 w-4" />
                           </Button>
+                          {isProductionProduct(product) ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 gap-1 border-indigo-200 text-indigo-600 hover:bg-indigo-50"
+                              onClick={() => navigate(`/products/${product.id}`)}
+                            >
+                              <Plus className="h-4 w-4" /> Ficha técnica
+                            </Button>
+                          ) : null}
                           <Button
                             size="sm"
                             variant="ghost"

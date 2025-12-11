@@ -54,7 +54,7 @@ import { PageHeading } from '@/components/PageHeading';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { PRODUCTION_HISTORY_QUERY_KEY, PRODUCTION_PRODUCTS_QUERY_KEY } from '@/lib/queryKeys';
+import { INVENTORY_CATEGORIES_QUERY_KEY, PRODUCTION_HISTORY_QUERY_KEY, PRODUCTION_PRODUCTS_QUERY_KEY } from '@/lib/queryKeys';
 import { fetchInsumos } from '@/lib/inventoryApi';
 import {
   DEFAULT_PRODUCT_CATEGORY,
@@ -62,6 +62,7 @@ import {
   getProductCategory,
 } from '@/lib/productCategories';
 import { productionService } from '@/services/production.service';
+import { categoryService } from '@/services/category.service';
 import { cn } from '@/lib/utils';
 
 export default function Production() {
@@ -111,6 +112,11 @@ export default function Production() {
     },
   });
 
+  const { data: categorias } = useQuery({
+    queryKey: INVENTORY_CATEGORIES_QUERY_KEY,
+    queryFn: categoryService.getCategories,
+  });
+
   const { data: insumos } = useQuery({
     queryKey: ['insumos'],
     queryFn: fetchInsumos,
@@ -141,6 +147,11 @@ export default function Production() {
     return new Map(productos.map((producto) => [producto.id, getProductCategory(producto)]));
   }, [productos]);
 
+  const reventaCategoryIds = useMemo(() => {
+    if (!categorias) return new Set<string>();
+    return new Set(categorias.filter((categoria) => categoria.tipo === 'REVENTA').map((categoria) => categoria.id));
+  }, [categorias]);
+
   const categoryFilters = useMemo(() => {
     const categories = getAvailableProductCategories(productos ?? []);
     return categories.length ? ['TODAS', ...categories] : ['TODAS'];
@@ -158,10 +169,13 @@ export default function Production() {
   const filteredProductos = useMemo(() => {
     if (!productos) return [];
     return productos.filter((producto) => {
+      if (producto.categoriaId && reventaCategoryIds.has(producto.categoriaId)) {
+        return false;
+      }
       if (categoryFilter === 'TODAS') return true;
       return getCategoryForProductId(producto.id) === categoryFilter;
     });
-  }, [productos, categoryFilter, productCategoryMap]);
+  }, [productos, categoryFilter, productCategoryMap, reventaCategoryIds]);
 
   const todayRecords = useMemo(() => {
     if (!productionHistory) return [] as ProductionRecord[];

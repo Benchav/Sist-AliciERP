@@ -72,11 +72,11 @@ export default function Users() {
   const { data: users, isLoading } = useQuery({
     queryKey: ['users'],
     queryFn: async () => {
-      const { data } = await api.get<{ data: any[] }>('/auth/users');
+      const { data } = await api.get<{ data: Array<User & { rol?: UserRole; role?: UserRole }> }>('/auth/users');
       // Normalizar datos por si viene 'rol' en lugar de 'role'
-      return data.data.map(u => ({
+      return data.data.map((u) => ({
         ...u,
-        role: u.role || u.rol
+        role: u.role ?? u.rol,
       })) as User[];
     },
   });
