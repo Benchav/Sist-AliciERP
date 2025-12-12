@@ -27,7 +27,10 @@ export default function Settings() {
   useEffect(() => {
     if (config) {
       setExchangeRate(config.tasaCambio.toString());
-      setOverheadPercent((config.factorOverhead * 100).toString());
+      const factor = typeof config.factorOverhead === 'number' && Number.isFinite(config.factorOverhead)
+        ? config.factorOverhead
+        : 0;
+      setOverheadPercent((factor * 100).toString());
     }
   }, [config]);
 
@@ -36,7 +39,10 @@ export default function Settings() {
       await updateSystemConfig({ tasaCambio, factorOverhead });
     },
     onSuccess: () => {
-      setConfig({ tasaCambio: parseFloat(exchangeRate), factorOverhead: parseFloat(overheadPercent) / 100 });
+      setConfig({
+        tasaCambio: parseFloat(exchangeRate),
+        factorOverhead: parseFloat(overheadPercent) / 100,
+      });
       toast.success('Configuración actualizada exitosamente');
     },
     onError: (error: unknown) => {
@@ -121,7 +127,13 @@ export default function Settings() {
               {config && (
                 <p className="text-sm text-slate-500 bg-slate-50 p-3 rounded border border-slate-100 space-y-1">
                   <span className="block">Tasa actual: <span className="font-semibold text-slate-900">C${config.tasaCambio.toFixed(2)}</span></span>
-                  <span className="block">Overhead: <span className="font-semibold text-slate-900">{(config.factorOverhead * 100).toFixed(2)}%</span></span>
+                  <span className="block">
+                    Overhead: <span className="font-semibold text-slate-900">
+                      {typeof config.factorOverhead === 'number' && Number.isFinite(config.factorOverhead)
+                        ? `${(config.factorOverhead * 100).toFixed(2)}%`
+                        : '—'}
+                    </span>
+                  </span>
                 </p>
               )}
             </div>
