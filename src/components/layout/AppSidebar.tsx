@@ -11,6 +11,8 @@ import {
   Truck,
   Tags,
   Layers,
+  ClipboardList,
+  Trash2,
   type LucideIcon,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
@@ -84,10 +86,22 @@ const menuItems: MenuItem[] = [
     roles: ['ADMIN', 'PANADERO'],
   },
   {
+    title: 'Encargos',
+    icon: ClipboardList,
+    url: '/orders',
+    roles: ['ADMIN', 'PANADERO', 'CAJERO'],
+  },
+  {
     title: 'Ventas',
     icon: Receipt,
     url: '/sales',
     roles: ['ADMIN', 'CAJERO'],
+  },
+  {
+    title: 'Descartes',
+    icon: Trash2,
+    url: '/waste',
+    roles: ['ADMIN', 'PANADERO'],
   },
   {
     title: 'Usuarios',

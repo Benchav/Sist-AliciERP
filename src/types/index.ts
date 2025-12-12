@@ -101,6 +101,57 @@ export interface VentaItem {
   subtotal: number;
 }
 
+export type OrderStatus = 'PENDIENTE' | 'ENTREGADO' | 'CANCELADO';
+
+export interface OrderItem {
+  productoId: string;
+  productoNombre?: string;
+  cantidad: number;
+  precioUnitario?: number;
+  subtotal?: number;
+}
+
+export interface OrderDeposit {
+  id: string;
+  monto: number;
+  medioPago: 'EFECTIVO' | 'TRANSFERENCIA';
+  createdAt: string;
+}
+
+export interface Order {
+  id: string;
+  cliente: string;
+  fechaEntrega: string;
+  estado: OrderStatus;
+  totalEstimado?: number;
+  abonos?: OrderDeposit[];
+  items: OrderItem[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateOrderDTO {
+  cliente: string;
+  fechaEntrega: string; //Formato de la fecha: YYYY-MM-DD
+  items: Array<{ productoId: string; cantidad: number }>;
+}
+
+export interface CreateOrderDepositDTO {
+  monto: number;
+  medioPago: 'EFECTIVO' | 'TRANSFERENCIA';
+}
+
+export interface FinalizeOrderDTO {
+  pagos: Pago[];
+  descuento: number;
+}
+
+export interface WasteRequest {
+  productoId: string;
+  cantidad: number;
+  motivo: string;
+}
+
 export interface Pago {
   moneda: 'NIO' | 'USD';
   cantidad: number;

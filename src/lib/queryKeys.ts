@@ -4,3 +4,5 @@ export const INVENTORY_CATEGORIES_QUERY_KEY = ['inventory-categories'] as const;
 export const CONVERSIONS_QUERY_KEY = ['conversions'] as const;
 export const RECIPE_BY_PRODUCT_QUERY_KEY = (productId: string) => ['recipe-by-product', productId] as const;
 export const RECIPE_COST_QUERY_KEY = (recipeId: string) => ['recipe-cost', recipeId] as const;
+export const ORDERS_QUERY_KEY = (estado?: string) => ['orders', estado ?? 'all'] as const;
+export const ORDER_DETAIL_QUERY_KEY = (orderId: string) => ['order-detail', orderId] as const;

@@ -16,6 +16,8 @@ const routeNames: Record<string, string> = {
   '/pos': 'Punto de Venta',
   '/inventory': 'Inventario',
   '/production': 'Producción',
+  '/orders': 'Encargos',
+  '/waste': 'Descartes',
   '/sales': 'Ventas',
   '/settings': 'Configuración',
 };
