@@ -235,7 +235,6 @@ export interface ProductionIngredientInput {
 export interface DailyProductionLotRequest {
   productoId: string;
   cantidadProducida: number;
-  costoManoObra?: number;
   insumos: ProductionIngredientInput[];
 }
 
@@ -272,7 +271,7 @@ export interface ProductionRecord {
   productoId: string;
   volumenSolicitado: number;
   costoIngredientes: number;
-  costoManoObra: number;
+  costoManoObra: number; // backend usa este campo para overhead aplicado
   costoTotal: number;
   costoUnitario?: number;
   insumosConsumidos?: ProductionRecordInsumo[];

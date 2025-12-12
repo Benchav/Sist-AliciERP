@@ -82,7 +82,6 @@ export default function Production() {
   type DailyProductionLotForm = {
     productoId: string;
     cantidadProducida: string;
-    costoManoObra: string;
     insumos: DailyProductionInsumoForm[];
   };
 
@@ -90,7 +89,6 @@ export default function Production() {
   const createEmptyDailyLot = (): DailyProductionLotForm => ({
     productoId: '',
     cantidadProducida: '',
-    costoManoObra: '',
     insumos: [createEmptyInsumo()],
   });
 
@@ -381,15 +379,6 @@ export default function Production() {
         aggregatedErrors.push(`${prefix}: ingrese una cantidad producida válida.`);
       }
 
-      let costoManoObra: number | undefined;
-      if (lot.costoManoObra.trim()) {
-        const parsedCosto = parseFloat(lot.costoManoObra);
-        if (Number.isNaN(parsedCosto) || parsedCosto < 0) {
-          aggregatedErrors.push(`${prefix}: el costo de mano de obra debe ser mayor o igual a 0.`);
-        } else {
-          costoManoObra = parsedCosto;
-        }
-      }
 
       const insumosPayload = lot.insumos
         .map((insumo, insumoIndex) => {
@@ -420,9 +409,7 @@ export default function Production() {
         insumos: insumosPayload,
       };
 
-      if (typeof costoManoObra === 'number') {
-        lotPayload.costoManoObra = costoManoObra;
-      }
+      // El overhead se calcula en backend usando el factor configurado; no capturamos mano de obra manual.
 
       return lotPayload;
     }) as DailyProductionRequest;
@@ -721,8 +708,8 @@ export default function Production() {
                   const productName = productMap.get(record.productoId)?.nombre ?? 'Producto sin nombre';
                   const unidades = formatQuantity(record.volumenSolicitado ?? 0);
                   const costoIngredientes = record.costoIngredientes ?? 0;
-                  const costoManoObra = record.costoManoObra ?? 0;
-                  const costoTotal = record.costoTotal ?? costoIngredientes + costoManoObra;
+                  const costoOverhead = record.costoManoObra ?? 0;
+                  const costoTotal = record.costoTotal ?? costoIngredientes + costoOverhead;
                   return (
                     <AccordionItem key={record.id} value={record.id} className="px-4">
                       <AccordionTrigger className="py-4 hover:no-underline">
@@ -749,8 +736,8 @@ export default function Production() {
                               <p className="text-lg font-semibold text-slate-900">{formatCurrency(costoIngredientes)}</p>
                             </div>
                             <div>
-                              <p className="text-xs uppercase tracking-wide text-slate-500">Mano de obra</p>
-                              <p className="text-lg font-semibold text-slate-900">{formatCurrency(costoManoObra)}</p>
+                              <p className="text-xs uppercase tracking-wide text-slate-500">Overhead aplicado</p>
+                              <p className="text-lg font-semibold text-slate-900">{formatCurrency(costoOverhead)}</p>
                             </div>
                             <div>
                               <p className="text-xs uppercase tracking-wide text-slate-500">Costo unitario</p>
@@ -1095,7 +1082,7 @@ export default function Production() {
                     </div>
                   </div>
                   <div className="space-y-4 px-4 py-4">
-                    <div className="grid gap-4 md:grid-cols-3">
+                    <div className="grid gap-4 md:grid-cols-2">
                       <div className="space-y-2">
                         <Label>Producto</Label>
                         <Select
@@ -1123,17 +1110,6 @@ export default function Production() {
                           placeholder="0"
                           value={lot.cantidadProducida}
                           onChange={(e) => updateDailyLotField(lotIndex, 'cantidadProducida', e.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Costo de mano de obra (opcional)</Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          placeholder="0"
-                          value={lot.costoManoObra}
-                          onChange={(e) => updateDailyLotField(lotIndex, 'costoManoObra', e.target.value)}
                         />
                       </div>
                     </div>
