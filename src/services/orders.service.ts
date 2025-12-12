@@ -25,6 +25,16 @@ export const addDeposit = async (id: string, payload: CreateOrderDepositDTO): Pr
   return data.data;
 };
 
+export const deleteDeposit = async (id: string, abonoId: string): Promise<Order> => {
+  const { data } = await api.delete<OrdersResponse<Order>>(`${ORDERS_PATH}/${id}/deposits/${abonoId}`);
+  return data.data;
+};
+
+export const updateDeliveryDate = async (id: string, fechaEntrega: string): Promise<Order> => {
+  const { data } = await api.patch<OrdersResponse<Order>>(`${ORDERS_PATH}/${id}`, { fechaEntrega });
+  return data.data;
+};
+
 export const finalizeOrder = async (id: string, payload: FinalizeOrderDTO): Promise<Order> => {
   const { data } = await api.post<OrdersResponse<Order>>(`${ORDERS_PATH}/${id}/finalize`, payload);
   return data.data;
@@ -35,5 +45,7 @@ export const ordersService = {
   createOrder,
   getOrderDetail,
   addDeposit,
+  deleteDeposit,
+  updateDeliveryDate,
   finalizeOrder,
 };

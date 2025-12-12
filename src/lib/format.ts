@@ -13,10 +13,11 @@ export const amountToCents = (amount: number): number => {
 /**
  * Format currency for display with symbol (values are already in C$)
  */
-export const formatCurrency = (amount: number, currency: 'NIO' | 'USD' = 'NIO'): string => {
+export const formatCurrency = (amount: number | null | undefined, currency: 'NIO' | 'USD' = 'NIO'): string => {
+  if (amount === null || amount === undefined || Number.isNaN(amount)) return '—';
   const symbol = currency === 'NIO' ? 'C$' : '$';
-  
-  return `${symbol} ${amount.toLocaleString('en-US', {
+
+  return `${symbol} ${Number(amount).toLocaleString('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;

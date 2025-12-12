@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -15,9 +15,10 @@ import { getApiErrorMessage } from '@/lib/errors';
 import { ordersService } from '@/services/orders.service';
 import { productService } from '@/services/product.service';
 import type { Order, OrderDeposit, OrderStatus, Producto } from '@/types';
-import { Plus, CalendarClock, Wallet, PackagePlus, AlertCircle } from 'lucide-react';
+import { Plus, CalendarClock, Wallet, PackagePlus, AlertCircle, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { useAuthStore } from '@/store/authStore';
 
 const STATUS_OPTIONS: Array<{ value: OrderStatus | 'TODOS'; label: string }> = [
   { value: 'PENDIENTE', label: 'Pendientes' },
@@ -42,7 +43,6 @@ type DepositForm = {
 type FinalizeForm = {
   pagoNIO: string;
   pagoUSD: string;
-  tasaUSD: string;
 };
 
 const createEmptyItem = (): OrderFormItem => ({ productoId: '', cantidad: '' });
@@ -61,6 +61,12 @@ const getDueStatus = (order: Order) => {
   if (diffDays < 0) return { label: 'Vencido', tone: 'danger' as const };
   if (diffDays <= 2) return { label: 'Próximo', tone: 'warning' as const };
   return { label: 'En tiempo', tone: 'success' as const };
+};
+
+const formatAbonoDate = (value?: string) => {
+  if (!value) return 'Sin fecha';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 'Sin fecha' : date.toLocaleString();
 };
 
 const statusBadge = (estado: OrderStatus) => {
@@ -84,6 +90,7 @@ export default function OrdersPage() {
   const [createDialog, setCreateDialog] = useState(false);
   const [depositDialog, setDepositDialog] = useState(false);
   const [finalizeDialog, setFinalizeDialog] = useState(false);
+  const [editDateDialog, setEditDateDialog] = useState(false);
 
   const [createForm, setCreateForm] = useState<CreateOrderForm>({
     cliente: '',
@@ -92,7 +99,9 @@ export default function OrdersPage() {
   });
 
   const [depositForm, setDepositForm] = useState<DepositForm>({ monto: '', medioPago: 'EFECTIVO' });
-  const [finalizeForm, setFinalizeForm] = useState<FinalizeForm>({ pagoNIO: '', pagoUSD: '', tasaUSD: '' });
+  const [finalizeForm, setFinalizeForm] = useState<FinalizeForm>({ pagoNIO: '', pagoUSD: '' });
+  const [deliveryDateDraft, setDeliveryDateDraft] = useState('');
+  const { config, fetchConfig } = useAuthStore();
 
   const {
     data: productos,
@@ -103,10 +112,23 @@ export default function OrdersPage() {
     queryFn: productService.getProducts,
   });
 
+  const productMap = useMemo(() => {
+    if (!productos) return new Map<string, Producto>();
+    return new Map(productos.map((producto) => [producto.id, producto]));
+  }, [productos]);
+
   const ordersQuery = useQuery({
     queryKey: ORDERS_QUERY_KEY('all'),
     queryFn: () => ordersService.listOrders(),
   });
+
+  useEffect(() => {
+    if (!config) {
+      fetchConfig().catch((error) => {
+        toast.error(getApiErrorMessage(error, 'No se pudo cargar la tasa de cambio'));
+      });
+    }
+  }, [config, fetchConfig]);
 
   const detailQuery = useQuery({
     queryKey: selectedOrderId ? ORDER_DETAIL_QUERY_KEY(selectedOrderId) : ['order-detail', 'idle'],
@@ -118,7 +140,7 @@ export default function OrdersPage() {
     mutationFn: ordersService.createOrder,
     onSuccess: () => {
       toast.success('Encargo creado');
-      queryClient.invalidateQueries({ queryKey: ORDERS_QUERY_KEY(statusFilter === 'TODOS' ? undefined : statusFilter) });
+      queryClient.invalidateQueries({ queryKey: ORDERS_QUERY_KEY('all') });
       setCreateDialog(false);
       setCreateForm({ cliente: '', fechaEntrega: '', items: [createEmptyItem()] });
     },
@@ -129,10 +151,13 @@ export default function OrdersPage() {
 
   const depositMutation = useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: DepositForm }) =>
-      ordersService.addDeposit(id, { monto: Number(payload.monto), medioPago: payload.medioPago }),
+      ordersService.addDeposit(id, {
+        monto: Number(payload.monto),
+        medioPago: payload.medioPago,
+      }),
     onSuccess: (_, variables) => {
       toast.success('Abono registrado');
-      queryClient.invalidateQueries({ queryKey: ORDERS_QUERY_KEY(statusFilter === 'TODOS' ? undefined : statusFilter) });
+      queryClient.invalidateQueries({ queryKey: ORDERS_QUERY_KEY('all') });
       if (variables.id) {
         queryClient.invalidateQueries({ queryKey: ORDER_DETAIL_QUERY_KEY(variables.id) });
       }
@@ -145,31 +170,69 @@ export default function OrdersPage() {
   });
 
   const finalizeMutation = useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: FinalizeForm }) => {
+    mutationFn: ({ id, payload, tasaCambio }: { id: string; payload: FinalizeForm; tasaCambio: number }) => {
       const pagos = [] as { moneda: 'NIO' | 'USD'; cantidad: number; tasa?: number }[];
       const nio = Number(payload.pagoNIO || 0);
       const usd = Number(payload.pagoUSD || 0);
-      const tasa = Number(payload.tasaUSD || 0) || undefined;
       if (nio > 0) pagos.push({ moneda: 'NIO', cantidad: nio });
-      if (usd > 0) pagos.push({ moneda: 'USD', cantidad: usd, tasa });
+      if (usd > 0) pagos.push({ moneda: 'USD', cantidad: usd, tasa: tasaCambio });
       return ordersService.finalizeOrder(id, { pagos, descuento: 0 });
     },
     onSuccess: (_, variables) => {
       toast.success('Encargo finalizado');
-      queryClient.invalidateQueries({ queryKey: ORDERS_QUERY_KEY(statusFilter === 'TODOS' ? undefined : statusFilter) });
+      queryClient.invalidateQueries({ queryKey: ORDERS_QUERY_KEY('all') });
       if (variables.id) {
         queryClient.invalidateQueries({ queryKey: ORDER_DETAIL_QUERY_KEY(variables.id) });
       }
       setFinalizeDialog(false);
-      setFinalizeForm({ pagoNIO: '', pagoUSD: '', tasaUSD: '' });
+      setFinalizeForm({ pagoNIO: '', pagoUSD: '' });
     },
     onError: (error: unknown) => {
       toast.error(getApiErrorMessage(error, 'No se pudo finalizar el encargo'));
     },
   });
 
+  const deleteDepositMutation = useMutation({
+    mutationFn: ({ id, abonoId }: { id: string; abonoId: string }) => ordersService.deleteDeposit(id, abonoId),
+    onSuccess: (_, variables) => {
+      toast.success('Abono eliminado');
+      queryClient.invalidateQueries({ queryKey: ORDERS_QUERY_KEY('all') });
+      queryClient.invalidateQueries({ queryKey: ORDER_DETAIL_QUERY_KEY(variables.id) });
+    },
+    onError: (error: unknown) => {
+      toast.error(getApiErrorMessage(error, 'No se pudo eliminar el abono'));
+    },
+  });
+
+  const updateDeliveryMutation = useMutation({
+    mutationFn: ({ id, fechaEntrega }: { id: string; fechaEntrega: string }) =>
+      ordersService.updateDeliveryDate(id, fechaEntrega),
+    onSuccess: (_, variables) => {
+      toast.success('Fecha de entrega actualizada');
+      queryClient.invalidateQueries({ queryKey: ORDERS_QUERY_KEY('all') });
+      queryClient.invalidateQueries({ queryKey: ORDER_DETAIL_QUERY_KEY(variables.id) });
+      setEditDateDialog(false);
+    },
+    onError: (error: unknown) => {
+      toast.error(getApiErrorMessage(error, 'No se pudo actualizar la fecha de entrega'));
+    },
+  });
+
   const isLoading = ordersQuery.isLoading || isLoadingProductos;
   const isError = ordersQuery.isError || isProductosError;
+
+  const computeOrderTotal = (order?: Order): number => {
+    if (!order) return 0;
+    if (typeof order.totalEstimado === 'number') return order.totalEstimado;
+    if (!order.items || order.items.length === 0) return 0;
+    return order.items.reduce((acc, item) => {
+      const price =
+        typeof item.subtotal === 'number'
+          ? item.subtotal
+          : (item.precioUnitario ?? productMap.get(item.productoId)?.precioVenta ?? 0) * (item.cantidad ?? 0);
+      return acc + price;
+    }, 0);
+  };
 
   const visibleOrders = useMemo(() => {
     if (!ordersQuery.data) return [] as Order[];
@@ -180,8 +243,14 @@ export default function OrdersPage() {
 
   const selectedOrder = detailQuery.data ?? null;
   const totalAbonos = selectedOrder ? sumDeposits(selectedOrder.abonos) : 0;
-  const totalEstimado = selectedOrder?.totalEstimado ?? 0;
-  const saldo = Math.max(totalEstimado - totalAbonos, 0);
+  const derivedTotal = computeOrderTotal(selectedOrder);
+  const saldo = Math.max(derivedTotal - totalAbonos, 0);
+
+  useEffect(() => {
+    if (selectedOrder) {
+      setDeliveryDateDraft(selectedOrder.fechaEntrega);
+    }
+  }, [selectedOrder]);
 
   const updateItemField = (index: number, field: keyof OrderFormItem, value: string) => {
     setCreateForm((prev) => {
@@ -222,13 +291,17 @@ export default function OrdersPage() {
 
   const handleFinalizeSubmit = () => {
     if (!selectedOrderId) return;
+    if (!config) {
+      toast.error('Configura la tasa de cambio en Ajustes antes de entregar el encargo');
+      return;
+    }
     const nio = Number(finalizeForm.pagoNIO || 0);
     const usd = Number(finalizeForm.pagoUSD || 0);
     if (nio <= 0 && usd <= 0) {
       toast.error('Ingresa un pago para cerrar el encargo');
       return;
     }
-    finalizeMutation.mutate({ id: selectedOrderId, payload: finalizeForm });
+    finalizeMutation.mutate({ id: selectedOrderId, payload: finalizeForm, tasaCambio: config.tasaCambio });
   };
 
   const openDetail = (orderId: string) => {
@@ -242,7 +315,7 @@ export default function OrdersPage() {
     setFinalizeDialog(false);
     setSelectedOrderId(null);
     setDepositForm({ monto: '', medioPago: 'EFECTIVO' });
-    setFinalizeForm({ pagoNIO: '', pagoUSD: '', tasaUSD: '' });
+    setFinalizeForm({ pagoNIO: '', pagoUSD: '' });
   };
 
   return (
@@ -309,7 +382,7 @@ export default function OrdersPage() {
                 {visibleOrders.map((order) => {
                   const due = getDueStatus(order);
                   const abonos = sumDeposits(order.abonos);
-                  const total = order.totalEstimado ?? 0;
+                  const total = computeOrderTotal(order);
                   const saldoPendiente = Math.max(total - abonos, 0);
                   return (
                     <TableRow key={order.id} className="hover:bg-slate-50/70">
@@ -453,7 +526,19 @@ export default function OrdersPage() {
                   <CardContent className="p-4 space-y-2">
                     <p className="text-xs uppercase tracking-wide text-slate-500">Cliente</p>
                     <p className="text-lg font-semibold text-slate-900">{selectedOrder.cliente}</p>
-                    <p className="text-sm text-slate-500">Entrega: {new Date(selectedOrder.fechaEntrega).toLocaleDateString()}</p>
+                    <div className="flex items-center gap-2 text-sm text-slate-500">
+                      <span>Entrega: {new Date(selectedOrder.fechaEntrega).toLocaleDateString()}</span>
+                      {selectedOrder.estado === 'PENDIENTE' ? (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-slate-500 hover:text-blue-600"
+                          onClick={() => setEditDateDialog(true)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      ) : null}
+                    </div>
                   </CardContent>
                 </Card>
                 <Card className="border-slate-200">
@@ -466,7 +551,7 @@ export default function OrdersPage() {
                     </div>
                     <div className="text-right">
                       <p className="text-xs uppercase tracking-wide text-slate-500">Total estimado</p>
-                      <p className="text-lg font-semibold text-slate-900">{totalEstimado ? formatCurrency(totalEstimado) : '—'}</p>
+                      <p className="text-lg font-semibold text-slate-900">{derivedTotal ? formatCurrency(derivedTotal) : '—'}</p>
                     </div>
                   </CardContent>
                 </Card>
@@ -491,11 +576,25 @@ export default function OrdersPage() {
                         <div key={abono.id} className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2">
                           <div>
                             <p className="text-sm font-semibold text-slate-900">{formatCurrency(abono.monto)}</p>
-                            <p className="text-xs text-slate-500">{abono.medioPago} • {new Date(abono.createdAt).toLocaleString()}</p>
+                            <p className="text-xs text-slate-500">{abono.medioPago} • {formatAbonoDate(abono.createdAt)}</p>
                           </div>
-                          <Badge variant="outline" className="bg-white text-slate-600 border-slate-200">
-                            Abono
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="bg-white text-slate-600 border-slate-200">
+                              Abono
+                            </Badge>
+                            {selectedOrder.estado === 'PENDIENTE' ? (
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8 text-slate-400 hover:text-red-600"
+                                onClick={() => deleteDepositMutation.mutate({ id: selectedOrder.id, abonoId: abono.id })}
+                                disabled={deleteDepositMutation.isPending}
+                                title="Eliminar abono"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            ) : null}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -626,16 +725,6 @@ export default function OrdersPage() {
                 onChange={(e) => setFinalizeForm((prev) => ({ ...prev, pagoUSD: e.target.value }))}
               />
             </div>
-            <div className="space-y-2">
-              <Label>Tasa USD (opcional)</Label>
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
-                value={finalizeForm.tasaUSD}
-                onChange={(e) => setFinalizeForm((prev) => ({ ...prev, tasaUSD: e.target.value }))}
-              />
-            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setFinalizeDialog(false)} disabled={finalizeMutation.isPending}>
@@ -643,6 +732,43 @@ export default function OrdersPage() {
             </Button>
             <Button onClick={handleFinalizeSubmit} disabled={finalizeMutation.isPending}>
               Entregar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Editar fecha de entrega */}
+      <Dialog open={editDateDialog} onOpenChange={(open) => setEditDateDialog(open)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Modificar fecha de entrega</DialogTitle>
+            <DialogDescription>Selecciona la nueva fecha para este encargo.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-2">
+              <Label>Nueva fecha</Label>
+              <Input
+                type="date"
+                value={deliveryDateDraft}
+                onChange={(e) => setDeliveryDateDraft(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDateDialog(false)} disabled={updateDeliveryMutation.isPending}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => {
+                if (!selectedOrderId || !deliveryDateDraft) {
+                  toast.error('Selecciona una fecha');
+                  return;
+                }
+                updateDeliveryMutation.mutate({ id: selectedOrderId, fechaEntrega: deliveryDateDraft });
+              }}
+              disabled={updateDeliveryMutation.isPending}
+            >
+              Guardar
             </Button>
           </DialogFooter>
         </DialogContent>
