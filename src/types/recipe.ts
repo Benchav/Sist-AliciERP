@@ -18,6 +18,9 @@ export interface Receta {
 export interface CostoReceta {
   costoTotal: number;
   costoUnitario: number;
+  costoInsumos: number;
+  costoOverhead: number;
+  factorOverhead: number;
   detalles: Array<{
     insumo: string;
     cantidadReceta: string;

@@ -152,6 +152,15 @@ export interface WasteRequest {
   motivo: string;
 }
 
+export type WasteItem = {
+  id: string;
+  productoId: string;
+  productoNombre?: string;
+  cantidad: number;
+  motivo?: string;
+  fecha: string;
+};
+
 export interface Pago {
   moneda: 'NIO' | 'USD';
   cantidad: number;
@@ -170,6 +179,7 @@ export interface Venta {
 
 export interface Config {
   tasaCambio: number;
+  factorOverhead: number;
 }
 
 export interface CheckoutRequest {

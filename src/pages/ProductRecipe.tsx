@@ -207,7 +207,7 @@ export default function ProductRecipe() {
               <Calculator className="h-5 w-5 text-indigo-600" />
               Costos estimados
             </CardTitle>
-            <CardDescription>Valores calculados en tiempo real por el backend.</CardDescription>
+            <CardDescription>Incluye insumos y overhead configurable.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {recetaCostQuery.isLoading ? (
@@ -228,6 +228,32 @@ export default function ProductRecipe() {
                       <CardTitle className="text-sm text-slate-500">Costo unitario sugerido</CardTitle>
                       <CardDescription className="text-2xl font-bold text-slate-900">
                         C$ {recetaCostQuery.data.costoUnitario.toFixed(2)}
+                      </CardDescription>
+                    </CardHeader>
+                  </Card>
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <Card className="border-slate-100 bg-white">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-xs uppercase tracking-wide text-slate-500">Costo insumos</CardTitle>
+                      <CardDescription className="text-lg font-semibold text-slate-900">
+                        C$ {recetaCostQuery.data.costoInsumos.toFixed(2)}
+                      </CardDescription>
+                    </CardHeader>
+                  </Card>
+                  <Card className="border-slate-100 bg-white">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-xs uppercase tracking-wide text-slate-500">Overhead</CardTitle>
+                      <CardDescription className="text-lg font-semibold text-slate-900">
+                        C$ {recetaCostQuery.data.costoOverhead.toFixed(2)}
+                      </CardDescription>
+                    </CardHeader>
+                  </Card>
+                  <Card className="border-slate-100 bg-white">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-xs uppercase tracking-wide text-slate-500">Factor overhead</CardTitle>
+                      <CardDescription className="text-lg font-semibold text-slate-900">
+                        {(recetaCostQuery.data.factorOverhead * 100).toFixed(0)}%
                       </CardDescription>
                     </CardHeader>
                   </Card>

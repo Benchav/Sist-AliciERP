@@ -13,6 +13,7 @@ import { updateSystemConfig } from '@/lib/configApi';
 
 export default function Settings() {
   const [exchangeRate, setExchangeRate] = useState('');
+  const [overheadPercent, setOverheadPercent] = useState('');
   const { config, fetchConfig, setConfig, isConfigLoading } = useAuthStore();
 
   useEffect(() => {
@@ -26,15 +27,16 @@ export default function Settings() {
   useEffect(() => {
     if (config) {
       setExchangeRate(config.tasaCambio.toString());
+      setOverheadPercent((config.factorOverhead * 100).toString());
     }
   }, [config]);
 
   const updateMutation = useMutation({
-    mutationFn: async (tasaCambio: number) => {
-      await updateSystemConfig(tasaCambio);
+    mutationFn: async ({ tasaCambio, factorOverhead }: { tasaCambio: number; factorOverhead: number }) => {
+      await updateSystemConfig({ tasaCambio, factorOverhead });
     },
     onSuccess: () => {
-      setConfig({ tasaCambio: parseFloat(exchangeRate) });
+      setConfig({ tasaCambio: parseFloat(exchangeRate), factorOverhead: parseFloat(overheadPercent) / 100 });
       toast.success('Configuración actualizada exitosamente');
     },
     onError: (error: unknown) => {
@@ -44,11 +46,16 @@ export default function Settings() {
 
   const handleUpdate = () => {
     const rate = parseFloat(exchangeRate);
+    const overhead = parseFloat(overheadPercent);
     if (isNaN(rate) || rate <= 0) {
       toast.error('Ingrese una tasa de cambio válida');
       return;
     }
-    updateMutation.mutate(rate);
+    if (isNaN(overhead) || overhead < 0) {
+      toast.error('Ingrese un porcentaje de overhead válido');
+      return;
+    }
+    updateMutation.mutate({ tasaCambio: rate, factorOverhead: overhead / 100 });
   };
 
   return (
@@ -69,18 +76,32 @@ export default function Settings() {
           <CardContent className="p-6 space-y-4">
             <div className="space-y-3">
               <Label htmlFor="exchange-rate" className="text-slate-700">Tasa de Cambio (USD a NIO)</Label>
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <div className="relative flex-1">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-medium">C$</span>
-                  <Input
-                    id="exchange-rate"
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    value={exchangeRate}
-                    onChange={(e) => setExchangeRate(e.target.value)}
-                    className="pl-9 border-slate-200 focus-visible:ring-indigo-500"
-                  />
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <div className="relative flex-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-medium">C$</span>
+                    <Input
+                      id="exchange-rate"
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={exchangeRate}
+                      onChange={(e) => setExchangeRate(e.target.value)}
+                      className="pl-9 border-slate-200 focus-visible:ring-indigo-500"
+                    />
+                  </div>
+                  <div className="relative flex-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-medium">%</span>
+                    <Input
+                      id="overhead-percent"
+                      type="number"
+                      step="0.01"
+                      placeholder="60"
+                      value={overheadPercent}
+                      onChange={(e) => setOverheadPercent(e.target.value)}
+                      className="pl-9 border-slate-200 focus-visible:ring-indigo-500"
+                    />
+                  </div>
                 </div>
                 <Button
                   onClick={handleUpdate}
@@ -98,8 +119,9 @@ export default function Settings() {
                 </Button>
               </div>
               {config && (
-                <p className="text-sm text-slate-500 bg-slate-50 p-3 rounded border border-slate-100">
-                  Tasa actual registrada: <span className="font-semibold text-slate-900">C${config.tasaCambio.toFixed(2)}</span>
+                <p className="text-sm text-slate-500 bg-slate-50 p-3 rounded border border-slate-100 space-y-1">
+                  <span className="block">Tasa actual: <span className="font-semibold text-slate-900">C${config.tasaCambio.toFixed(2)}</span></span>
+                  <span className="block">Overhead: <span className="font-semibold text-slate-900">{(config.factorOverhead * 100).toFixed(2)}%</span></span>
                 </p>
               )}
             </div>
