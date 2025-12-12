@@ -6,8 +6,6 @@ import axios, {
 } from 'axios';
 import { getApiErrorMessage, type ApiErrorPayload } from './errors';
 
-// Default to the deployed API even during local development so the app always targets
-// the production backend unless the developer explicitly overrides it via VITE_API_URL.
 const DEFAULT_API_URL = 'https://sist-alici.vercel.app';
 
 const sanitizeBaseUrl = (url: string): string => url.replace(/\/$/, '');

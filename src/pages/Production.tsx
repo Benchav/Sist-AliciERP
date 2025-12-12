@@ -137,6 +137,11 @@ export default function Production() {
     return new Map(insumos.map((insumo) => [insumo.id, insumo]));
   }, [insumos]);
 
+  const categoriaMap = useMemo(() => {
+    if (!categorias) return new Map<string, string>();
+    return new Map(categorias.map((categoria) => [categoria.id, categoria.tipo]));
+  }, [categorias]);
+
   const productMap = useMemo(() => {
     if (!productos) return new Map<string, Producto>();
     return new Map(productos.map((producto) => [producto.id, producto]));
@@ -147,10 +152,22 @@ export default function Production() {
     return new Map(productos.map((producto) => [producto.id, getProductCategory(producto)]));
   }, [productos]);
 
-  const reventaCategoryIds = useMemo(() => {
-    if (!categorias) return new Set<string>();
-    return new Set(categorias.filter((categoria) => categoria.tipo === 'REVENTA').map((categoria) => categoria.id));
-  }, [categorias]);
+  const isProductionProduct = (producto: Producto): boolean => {
+    if (producto.categoriaId) {
+      const tipo = (categoriaMap.get(producto.categoriaId) ?? '').toString().trim().toUpperCase();
+      if (tipo === 'PRODUCCION') return true;
+      if (tipo === 'REVENTA') return false;
+    }
+
+    if (producto.categoria) {
+      const normalized = producto.categoria.toLowerCase();
+      if (normalized.includes('reventa')) return false;
+      if (normalized.includes('produccion') || normalized.includes('producción')) return true;
+    }
+
+    // Si no hay categoría o no coincide, no es de producción
+    return false;
+  };
 
   const categoryFilters = useMemo(() => {
     const categories = getAvailableProductCategories(productos ?? []);
@@ -169,13 +186,13 @@ export default function Production() {
   const filteredProductos = useMemo(() => {
     if (!productos) return [];
     return productos.filter((producto) => {
-      if (producto.categoriaId && reventaCategoryIds.has(producto.categoriaId)) {
+      if (!isProductionProduct(producto)) {
         return false;
       }
       if (categoryFilter === 'TODAS') return true;
       return getCategoryForProductId(producto.id) === categoryFilter;
     });
-  }, [productos, categoryFilter, productCategoryMap, reventaCategoryIds]);
+  }, [productos, categoryFilter, productCategoryMap, isProductionProduct]);
 
   const todayRecords = useMemo(() => {
     if (!productionHistory) return [] as ProductionRecord[];
@@ -1089,7 +1106,7 @@ export default function Production() {
                             <SelectValue placeholder="Seleccione un producto" />
                           </SelectTrigger>
                           <SelectContent>
-                            {productos?.map((producto) => (
+                            {filteredProductos.map((producto) => (
                               <SelectItem key={producto.id} value={producto.id}>
                                 {producto.nombre}
                               </SelectItem>
