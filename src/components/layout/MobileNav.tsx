@@ -1,4 +1,4 @@
-import { LayoutDashboard, ShoppingCart, Package, Factory, Receipt, type LucideIcon } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, Package, Factory, Receipt, Wallet, Banknote, type LucideIcon } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
 import { hasRole } from '@/lib/auth';
@@ -38,6 +38,18 @@ export function MobileNav() {
       icon: Receipt,
       url: '/sales',
       roles: ['ADMIN', 'CAJERO'],
+    },
+    {
+      title: 'Caja',
+      icon: Banknote,
+      url: '/cash',
+      roles: ['ADMIN'],
+    },
+    {
+      title: 'Planilla',
+      icon: Wallet,
+      url: '/payroll',
+      roles: ['ADMIN'],
     },
   ];
 

@@ -23,6 +23,8 @@ const NotFound = lazy(() => import('./pages/NotFound'));
 const ProductRecipe = lazy(() => import('./pages/ProductRecipe'));
 const Orders = lazy(() => import('./pages/Orders'));
 const Waste = lazy(() => import('./pages/Waste'));
+const Payroll = lazy(() => import('./pages/Payroll'));
+const Cash = lazy(() => import('./pages/Cash'));
 
 const queryClient = new QueryClient();
 
@@ -139,6 +141,26 @@ const App = () => {
                   <ProtectedRoute allowedRoles={['ADMIN', 'PANADERO', 'CAJERO']}>
                     <AppLayout>
                       <Orders />
+                    </AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/cash"
+                element={
+                  <ProtectedRoute allowedRoles={['ADMIN']}>
+                    <AppLayout>
+                      <Cash />
+                    </AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/payroll"
+                element={
+                  <ProtectedRoute allowedRoles={['ADMIN']}>
+                    <AppLayout>
+                      <Payroll />
                     </AppLayout>
                   </ProtectedRoute>
                 }

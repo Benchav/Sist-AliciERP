@@ -167,6 +167,29 @@ export interface Pago {
   tasa?: number;
 }
 
+export type CashTipo = 'INGRESO' | 'EGRESO';
+
+export interface CashMovement {
+  id: string;
+  tipo: CashTipo;
+  monto: number;
+  descripcion?: string | null;
+  referenciaId?: string | null;
+  referenciaTipo?: string | null;
+  fecha: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CreateCashDTO {
+  tipo: CashTipo;
+  monto: number;
+  descripcion?: string;
+  referenciaId?: string;
+  referenciaTipo?: string;
+  fecha?: string; // ISO date-time
+}
+
 export interface Venta {
   id: string;
   fecha: string;
@@ -181,6 +204,32 @@ export interface Config {
   tasaCambio: number;
   factorOverhead: number;
 }
+
+export type AreaTrabajo = 'PRODUCCION' | 'LIMPIEZA' | 'CAJERO';
+
+export interface PayrollEntry {
+  id: string;
+  nombre: string;
+  puesto: string;
+  areaTrabajo: AreaTrabajo;
+  salarioBase: number;
+  pagoHorasExtra: number;
+  totalPago: number;
+  quincena: 1 | 2;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreatePayrollDTO {
+  nombre: string;
+  puesto: string;
+  areaTrabajo: AreaTrabajo;
+  salarioBase: number;
+  pagoHorasExtra: number;
+  quincena: 1 | 2;
+}
+
+export interface UpdatePayrollDTO extends Partial<CreatePayrollDTO> {}
 
 export interface CheckoutRequest {
   items: Array<{

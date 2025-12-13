@@ -7,3 +7,5 @@ export const RECIPE_COST_QUERY_KEY = (recipeId: string) => ['recipe-cost', recip
 export const ORDERS_QUERY_KEY = (estado?: string) => ['orders', estado ?? 'all'] as const;
 export const ORDER_DETAIL_QUERY_KEY = (orderId: string) => ['order-detail', orderId] as const;
 export const WASTE_QUERY_KEY = ['waste'] as const;
+export const PAYROLL_QUERY_KEY = ['payroll'] as const;
+export const CASH_QUERY_KEY = (filters: unknown) => ['cash', filters] as const;

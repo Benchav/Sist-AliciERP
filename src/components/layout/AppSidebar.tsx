@@ -13,6 +13,8 @@ import {
   Layers,
   ClipboardList,
   Trash2,
+  Banknote,
+  Wallet,
   type LucideIcon,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
@@ -92,10 +94,22 @@ const menuItems: MenuItem[] = [
     roles: ['ADMIN', 'PANADERO', 'CAJERO'],
   },
   {
+    title: 'Planilla',
+    icon: Wallet,
+    url: '/payroll',
+    roles: ['ADMIN'],
+  },
+  {
     title: 'Ventas',
     icon: Receipt,
     url: '/sales',
     roles: ['ADMIN', 'CAJERO'],
+  },
+  {
+    title: 'Caja',
+    icon: Banknote,
+    url: '/cash',
+    roles: ['ADMIN'],
   },
   {
     title: 'Descartes',
